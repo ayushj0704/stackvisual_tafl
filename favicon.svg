@@ -1,0 +1,24 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- card body -->
+  <rect x="4" y="4" width="56" height="56" rx="10" fill="#1e1a14" stroke="#2e2820" stroke-width="1"/>
+  <!-- title bar -->
+  <rect x="4" y="4" width="56" height="18" rx="10" fill="#262118"/>
+  <rect x="4" y="14" width="56" height="8" fill="#262118"/>
+  <!-- traffic dots -->
+  <circle cx="14" cy="13" r="3" fill="#ff5f57"/>
+  <circle cx="23" cy="13" r="3" fill="#febc2e"/>
+  <circle cx="32" cy="13" r="3" fill="#28c840"/>
+  <!-- state badge -->
+  <rect x="42" y="7" width="14" height="11" rx="3" fill="#3a4a2e" stroke="#5a7040" stroke-width="0.8"/>
+  <text x="49" y="16" font-family="'DM Mono',ui-monospace,monospace" font-size="7" fill="#a8e6b0" text-anchor="middle" font-weight="500">q&#x2081;</text>
+  <!-- stack TOP -->
+  <rect x="8" y="26" width="48" height="10" rx="3" fill="rgba(168,96,32,0.55)" stroke="#e8a050" stroke-width="1.2"/>
+  <text x="22" y="34.5" font-family="'DM Mono',ui-monospace,monospace" font-size="9" fill="#f4d090" font-weight="600">A</text>
+  <text x="50" y="34.5" font-family="'DM Mono',ui-monospace,monospace" font-size="5.5" fill="#e8a050" text-anchor="end" letter-spacing="0.8">TOP</text>
+  <!-- stack MID -->
+  <rect x="8" y="38" width="48" height="9" rx="3" fill="rgba(255,255,255,0.06)" stroke="rgba(244,239,230,0.15)" stroke-width="0.8"/>
+  <text x="22" y="45.5" font-family="'DM Mono',ui-monospace,monospace" font-size="9" fill="rgba(244,239,230,0.55)" font-weight="500">A</text>
+  <!-- stack BTM -->
+  <rect x="8" y="49" width="48" height="9" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(244,239,230,0.09)" stroke-width="0.8" stroke-dasharray="3 2"/>
+  <text x="22" y="56.5" font-family="'DM Mono',ui-monospace,monospace" font-size="9" fill="rgba(244,239,230,0.25)">$</text>
+</svg>
