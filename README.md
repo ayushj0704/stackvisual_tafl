@@ -8,7 +8,7 @@ A fully client-side, zero-dependency **pushdown automaton (PDA) simulator** buil
 
 ## Live Demo
 
-Here is the Deployed link : ``<link>``
+Here is the Deployed link : [link](https://ayushj0704.github.io/stackvisual_tafl/)
 ---
 
 ## Screenshots
