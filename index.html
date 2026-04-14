@@ -1,741 +1,332 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Automata Lab : PDA Stack Visualizer</title>
-  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="./favicon.svg">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automata Lab </title>
+    <link rel="apple-touch-icon" href="./favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --ink: #334155;
+            --muted: #64748b;
+            --glass-bg: rgba(255, 255, 255, 0.45);
+            --glass-border: rgba(255, 255, 255, 0.6);
+            --glass-shadow: 0 8px 32px rgba(51, 65, 85, 0.08);
+            --accent: #a1c4fd;
+            --accent-glow: #c2e9fb;
+        }
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap"
-    rel="stylesheet" />
-  <link rel="stylesheet" href="./styles.css" />
-  <script src="https://unpkg.com/cytoscape/dist/cytoscape.min.js"></script>
+        body, html {
+            margin: 0; padding: 0;
+            background: linear-gradient(120deg, #fdfbfb 0%, #ebedee 100%);
+            background-size: 200% 200%;
+            animation: auroraMesh 20s ease infinite alternate;
+            color: var(--ink);
+            font-family: 'DM Sans', sans-serif;
+            overflow-x: hidden; 
+        }
+
+        @keyframes auroraMesh {
+            0% { background: linear-gradient(120deg, #ffecd2 0%, #fcb69f 100%); }
+            50% { background: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%); }
+            100% { background: linear-gradient(120deg, #e0c3fc 0%, #8ec5fc 100%); }
+        }
+
+        #webgl-container {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 0; pointer-events: none; opacity: 0.8;
+        }
+
+        .hero { position: relative; height: 180vh; z-index: 1; pointer-events: none; }
+
+        .hero-content {
+            position: sticky; top: 0; height: 100vh;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            text-align: center; pointer-events: auto;
+        }
+
+        .eyebrow {
+            font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: 3px; text-transform: uppercase;
+            color: var(--muted); margin-bottom: 2rem;
+            opacity: 0; filter: blur(8px); transition: opacity 1.2s ease, filter 1.2s ease;
+        }
+        .eyebrow.visible { opacity: 1; filter: blur(0); }
+
+        .headline { font-family: 'DM Serif Display', serif; font-size: 80px; font-weight: 400; line-height: 1.1; color: #475569; margin: 0 0 2rem 0; letter-spacing: -1px; }
+        .headline em { font-style: italic; font-size: 110px; color: var(--ink); display: block; letter-spacing: -2px; }
+        
+        .word { display: inline-block; opacity: 0; filter: blur(8px); transform: translateY(30px); transition: opacity 1s ease-out, transform 1s cubic-bezier(0.2, 0.8, 0.2, 1), filter 1s ease-out; }
+        .word.visible { opacity: 1; filter: blur(0); transform: translateY(0); }
+
+        .sub-copy { font-size: 18px; font-weight: 300; color: var(--muted); max-width: 500px; line-height: 1.6; margin-bottom: 3.5rem; opacity: 0; transition: opacity 1s ease; }
+        .sub-copy.visible { opacity: 1; }
+
+        .cta-group { display: flex; gap: 1.5rem; opacity: 0; transform: translateY(20px); transition: all 0.8s cubic-bezier(0.2, 0.8, 0.2, 1); }
+        .cta-group.visible { opacity: 1; transform: translateY(0); }
+
+        .btn {
+            font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 500; border-radius: 999px;
+            height: 52px; padding: 0 36px; display: inline-flex; align-items: center; justify-content: center;
+            text-decoration: none; transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1); cursor: pointer;
+        }
+        .btn-primary { 
+            background: rgba(255,255,255,0.7); color: var(--ink); border: 1px solid var(--glass-border);
+            backdrop-filter: blur(12px); box-shadow: var(--glass-shadow); 
+        }
+        .btn-primary:hover { background: rgba(255,255,255,0.9); transform: translateY(-2px); box-shadow: 0 12px 30px rgba(51, 65, 85, 0.15); }
+        
+        .features { position: relative; z-index: 1; padding: 6rem 5vw 12rem 5vw; max-width: 900px; margin: 0 auto; }
+        
+        /* Glassmorphism Interactive Features */
+        .feature-block {
+            display: flex; flex-direction: column; gap: 1.5rem; padding: 3.5rem; 
+            background: var(--glass-bg); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--glass-border); border-radius: 24px; box-shadow: var(--glass-shadow);
+            margin-bottom: 4rem; opacity: 0; transform: translateY(30px); transition: opacity 1s ease-out, transform 1s ease-out;
+        }
+        .feature-block.visible { opacity: 1; transform: translateY(0); }
+        
+        .feature-text h3 { font-family: 'DM Serif Display', serif; font-size: 32px; font-weight: 400; margin: 0 0 0.8rem 0; color: var(--ink); }
+        .feature-text p { font-size: 16px; color: var(--muted); line-height: 1.6; margin: 0; }
+
+        .interactive-panel { margin-top: 1rem; border-top: 1px dashed rgba(51, 65, 85, 0.15); padding-top: 2rem; }
+        .panel-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+        .btn-small { height: 40px; padding: 0 24px; font-size: 14px; }
+        .panel-status { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); }
+        .btn-disabled { opacity: 0.5; pointer-events: none; }
+
+        .word-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(65px, 1fr)); gap: 10px; max-height: 250px; overflow-y: auto; padding-right: 12px; }
+        .word-grid::-webkit-scrollbar { width: 6px; }
+        .word-grid::-webkit-scrollbar-thumb { background: rgba(51,65,85,0.2); border-radius: 6px; }
+
+        .word-tile {
+            background: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.8); border-radius: 8px;
+            padding: 8px; text-align: center; font-family: 'DM Mono', monospace; font-size: 13px; color: var(--ink);
+            opacity: 0; transform: scale(0.9); animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        @keyframes popIn { 100% { opacity: 1; transform: scale(1); } }
+        .word-tile.accept { background: rgba(164, 206, 114, 0.25); border-color: rgba(164, 206, 114, 0.8); color: #4e7a27; }
+        .word-tile.reject { background: rgba(226, 125, 125, 0.2); border-color: rgba(226, 125, 125, 0.6); color: #a13d3d; }
+
+        /* Sync Split View */
+        .split-view { display: flex; gap: 2rem; background: rgba(255,255,255,0.3); border-radius: 16px; padding: 1.5rem; border: 1px solid rgba(255,255,255,0.5); }
+        .split-pane { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+        .split-divider { width: 1px; background: rgba(51,65,85,0.1); }
+        
+        .input-display { font-family: 'DM Mono', monospace; font-size: 24px; letter-spacing: 6px; height: 32px; color: var(--ink); }
+        .input-display span { color: rgba(51,65,85,0.3); transition: color 0.3s; }
+        .input-display span.active { color: #0ea5e9; border-bottom: 2px solid #0ea5e9; }
+        .input-display span.passed { color: var(--ink); }
+
+        .stack-view { display: flex; flex-direction: column-reverse; gap: 5px; width: 64px; border-bottom: 3px solid rgba(51,65,85,0.2); padding-bottom: 6px; height: 160px; justify-content: flex-start; }
+        .stack-slot {
+            height: 26px; border: 1px dashed rgba(51,65,85,0.2); border-radius: 4px;
+            display: flex; align-items: center; justify-content: center; font-family: 'DM Mono', monospace; font-size: 14px;
+            color: transparent; transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); transform: translateY(-8px); opacity: 0;
+        }
+        .stack-slot.visible { transform: translateY(0); opacity: 1; }
+        .stack-slot.filled { background: rgba(255,255,255,0.8); border-style: solid; border-color: rgba(255,255,255,1); color: var(--ink); box-shadow: 0 2px 10px rgba(51,65,85,0.05); }
+        .stack-slot.top { border-color: #0ea5e9; color: #0ea5e9; background: rgba(14,165,233,0.1); }
+        .stack-slot.btm { color: var(--muted); }
+        
+        .status-msg { font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 2px; opacity: 0; transform: translateY(-5px); transition: all 0.3s; }
+        .status-msg.show { opacity: 1; transform: translateY(0); }
+        .status-msg.accept { color: #4e7a27; }
+        .status-msg.reject { color: #a13d3d; }
+
+        @media (max-width: 768px) {
+            #webgl-container { display: none; }
+            .hero-content { z-index: 10; margin-top: 10vh; height: auto; }
+            .hero { height: auto; padding-bottom: 5vh; }
+            .headline { font-size: 48px; } .headline em { font-size: 64px; }
+            .split-view { flex-direction: column; }
+            .split-divider { width: 100%; height: 1px; }
+        }
+    </style>
 </head>
-
 <body>
 
-  <!-- ═══════════════════════════════════════════════════
-         LANDING PAGE
-    ═══════════════════════════════════════════════════ -->
-  <div id="landingPage" class="landing">
+    <div id="webgl-container"></div>
 
-    <!-- SITE NAV -->
-    <nav class="site-nav">
-      <div class="site-logo">
-
-        <svg width="28" height="28" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"
-          style="flex-shrink:0">
-          <rect x="4" y="4" width="56" height="56" rx="10" fill="#1e1a14" stroke="#2e2820" stroke-width="1" />
-          <rect x="4" y="4" width="56" height="18" rx="10" fill="#262118" />
-          <rect x="4" y="14" width="56" height="8" fill="#262118" />
-          <circle cx="14" cy="13" r="3" fill="#ff5f57" />
-          <circle cx="23" cy="13" r="3" fill="#febc2e" />
-          <circle cx="32" cy="13" r="3" fill="#28c840" />
-          <rect x="42" y="7" width="14" height="11" rx="3" fill="#3a4a2e" stroke="#5a7040" stroke-width="0.8" />
-          <text x="49" y="16" font-family="'DM Mono',monospace" font-size="7" fill="#a8e6b0" text-anchor="middle"
-            font-weight="500">q&#x2081;</text>
-          <rect x="8" y="26" width="48" height="10" rx="3" fill="rgba(168,96,32,0.55)" stroke="#e8a050"
-            stroke-width="1.2" />
-          <rect x="8" y="38" width="48" height="9" rx="3" fill="rgba(255,255,255,0.06)" stroke="rgba(244,239,230,0.15)"
-            stroke-width="0.8" />
-          <rect x="8" y="49" width="48" height="9" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(244,239,230,0.09)"
-            stroke-width="0.8" stroke-dasharray="3 2" />
-        </svg>
-
-        <span class="logo-brace">{</span><span class="logo-text">automata<span
-            class="logo-accent">lab</span></span><span class="logo-brace">}</span>
-      </div>
-      <div class="site-nav-mid">
-        <a class="snl" href="#features-anchor">Features</a>
-        <a class="snl" href="#examples-anchor">Examples</a>
-        <button class="snl" id="heroTheoryBtn">Theory</button>
-      </div>
-      <button class="nav-cta" id="heroLaunchBtn">Launch Simulator ↗</button>
-    </nav>
-
-    <!-- HERO -->
-    <section class="hero">
-      <div class="hero-left">
-        <div class="hero-eyebrow">
-          <span class="eyebrow-dot"></span>
-          Pushdown Automata &nbsp;·&nbsp; Visual Simulator &nbsp;·&nbsp; Theory of Computation
-        </div>
-        <h1 class="hero-headline">
-          See how<br /><em>stack memory</em><br />thinks.
-        </h1>
-        <p class="hero-sub">
-          Step through a deterministic PDA frame by frame — watch the stack grow and shrink, trace every state
-          transition, and finally <em>understand</em> why aⁿbⁿ is context-free but not regular.
-        </p>
-        <div class="hero-actions">
-          <button class="btn-primary" id="heroStartBtn">Start Visualizing →</button>
-          <button class="btn-outline" id="heroExamplesBtn">Browse Examples ↓</button>
-        </div>
-        <div class="hero-tags">
-          <span class="htag green">✓ aⁿbⁿ</span>
-          <span class="htag blue">✓ Balanced Parens</span>
-          <span class="htag amber">✓ wwᴿ Palindrome</span>
-          <span class="htag rose">✓ aⁿb²ⁿ</span>
-          <span class="htag neutral">✓ Custom DPDA</span>
-        </div>
-      </div>
-      <div class="hero-right">
-        <div class="hv-card">
-          <div class="hv-header">
-            <div class="hv-dots"><span></span><span></span><span></span></div>
-            <div class="hv-title">PDA Simulation — aⁿbⁿ</div>
-            <div class="hv-badge accept-badge">● ACCEPT</div>
-          </div>
-          <div class="hv-tape-row">
-            <div class="hv-cell consumed">a</div>
-            <div class="hv-cell consumed">a</div>
-            <div class="hv-cell active">b</div>
-            <div class="hv-cell dim">b</div>
-          </div>
-          <div class="hv-panels">
-            <div class="hv-stack-side">
-              <div class="hv-side-label">Stack</div>
-              <div class="hv-sitem top-item">A<span class="hv-stag">TOP</span></div>
-              <div class="hv-sitem">A</div>
-              <div class="hv-sitem btm-item">$<span class="hv-stag">BTM</span></div>
+    <div class="hero">
+        <div class="hero-content">
+            <div class="eyebrow" id="seq-1">Pushdown Automata &middot; Visual Simulator</div>
+            <h1 class="headline">
+                <span class="word">See</span> <span class="word">how</span><br>
+                <em><span class="word">stack</span> <span class="word">memory</span></em><br>
+                <span class="word">flows.</span>
+            </h1>
+            <p class="sub-copy" id="seq-3">Step effortlessly through deterministic computation spaces. Calm your mind, trace the logic, and understand context-free boundaries naturally.</p>
+            <div class="cta-group" id="seq-4">
+                <a href="simulator.html" class="btn btn-primary">Launch Simulator &rarr;</a>
+                <a href="#features" class="btn btn-primary" style="background:transparent; border:1px solid rgba(51,65,85,0.2);">Browse Logic &darr;</a>
             </div>
-            <div class="hv-state-side">
-              <div class="hv-side-label">Current State</div>
-              <div class="hv-state-box">q<sub>1</sub></div>
-              <div class="hv-transition-box">q₀ → <strong>b / pop A</strong> → q₁</div>
-            </div>
-          </div>
         </div>
-        <div class="hv-float f1">push A</div>
-        <div class="hv-float f2">pop A</div>
-        <div class="hv-float f3">q₀ → q₁</div>
-      </div>
-    </section>
-
-    <!-- FEATURES STRIP -->
-    <div id="features-anchor" style="margin-top:-1px"></div>
-    <section class="features-strip">
-      <div class="fs-inner">
-        <div class="fs-item"><span class="fs-icon">⊕</span><span class="fs-name">Animated Stack</span><span
-            class="fs-desc">Push &amp; pop with live transitions</span></div>
-        <div class="fs-sep"></div>
-        <div class="fs-item"><span class="fs-icon">◈</span><span class="fs-name">State Diagram</span><span
-            class="fs-desc">Active edge highlighted each step</span></div>
-        <div class="fs-sep"></div>
-        <div class="fs-item"><span class="fs-icon">⟳</span><span class="fs-name">Full Playback</span><span
-            class="fs-desc">Play, pause, scrub any step freely</span></div>
-        <div class="fs-sep"></div>
-        <div class="fs-item"><span class="fs-icon">⌘</span><span class="fs-name">Custom DPDA</span><span
-            class="fs-desc">Build your own via GUI or JSON</span></div>
-        <div class="fs-sep"></div>
-        <div class="fs-item"><span class="fs-icon">↗</span><span class="fs-name">Share &amp; Export</span><span
-            class="fs-desc">URL sharing, JSON step export</span></div>
-      </div>
-    </section>
-
-    <!-- EXAMPLES GALLERY -->
-    <div id="examples-anchor"></div>
-    <section class="examples-section">
-      <div class="ex-header">
-        <div class="ex-eyebrow"><span class="eyebrow-dot"></span> Standard Language Examples</div>
-        <h2 class="ex-title">Ready-to-run<br /><em>automata.</em></h2>
-        <p class="ex-sub">Click any card to open it in the simulator. Each demonstrates a core formal language theory
-          concept — from context-free classics to the limits of pushdown computation.</p>
-      </div>
-
-      <div class="ex-grid">
-
-        <!-- aⁿbⁿ -->
-        <div class="ex-card">
-          <div class="ex-card-top">
-            <span class="ex-badge badge-green">Context-Free</span>
-            <span class="ex-lang">{ aⁿbⁿ | n ≥ 0 }</span>
-          </div>
-          <div class="ex-card-title">aⁿbⁿ Language</div>
-          <p class="ex-card-desc">The canonical context-free language that no DFA can recognize. Push one marker per
-            'a', pop one per 'b'. Accept iff stack empties exactly at end of input.</p>
-          <div class="ex-card-rule"><code>q₀ —a/push A→ q₀ —b/pop A→ q₁ —EOF/⊥→ qₐ</code></div>
-          <div class="ex-tests">
-            <div class="ex-test-lbl">Quick test:</div>
-            <div class="ex-chips">
-              <button class="ex-chip ch-accept" data-problem="anbn" data-input="">ε</button>
-              <button class="ex-chip ch-accept" data-problem="anbn" data-input="ab">ab</button>
-              <button class="ex-chip ch-accept" data-problem="anbn" data-input="aabb">aabb</button>
-              <button class="ex-chip ch-accept" data-problem="anbn" data-input="aaabbb">aaabbb</button>
-              <button class="ex-chip ch-reject" data-problem="anbn" data-input="aab">aab ✗</button>
-              <button class="ex-chip ch-reject" data-problem="anbn" data-input="abb">abb ✗</button>
-              <button class="ex-chip ch-reject" data-problem="anbn" data-input="ba">ba ✗</button>
-            </div>
-          </div>
-          <button class="ex-launch" data-problem="anbn" data-input="aaabbb">Run in Simulator →</button>
-        </div>
-
-        <!-- Balanced Parens -->
-        <div class="ex-card">
-          <div class="ex-card-top">
-            <span class="ex-badge badge-blue">Matching</span>
-            <span class="ex-lang">Balanced ( )</span>
-          </div>
-          <div class="ex-card-title">Balanced Parentheses</div>
-          <p class="ex-card-desc">Push on open bracket, pop on close. Reject immediately on underflow. Accept if and
-            only if the stack is empty when the input is exhausted.</p>
-          <div class="ex-card-rule"><code>q₀ —(/push (→ q₀ —)/pop (→ q₀ —EOF &amp; ∅→ qₐ</code></div>
-          <div class="ex-tests">
-            <div class="ex-test-lbl">Quick test:</div>
-            <div class="ex-chips">
-              <button class="ex-chip ch-accept" data-problem="paren" data-input="">ε</button>
-              <button class="ex-chip ch-accept" data-problem="paren" data-input="()">()</button>
-              <button class="ex-chip ch-accept" data-problem="paren" data-input="(())">(())</button>
-              <button class="ex-chip ch-accept" data-problem="paren" data-input="(()())">(()())</button>
-              <button class="ex-chip ch-reject" data-problem="paren" data-input="(">( ✗</button>
-              <button class="ex-chip ch-reject" data-problem="paren" data-input=")">) ✗</button>
-              <button class="ex-chip ch-reject" data-problem="paren" data-input="(()">(() ✗</button>
-            </div>
-          </div>
-          <button class="ex-launch" data-problem="paren" data-input="(()())">Run in Simulator →</button>
-        </div>
-
-        <!-- wwᴿ -->
-        <div class="ex-card ex-card-featured">
-          <div class="ex-card-top">
-            <span class="ex-badge badge-amber">Palindrome ★</span>
-            <span class="ex-lang">{ wwᴿ | w ∈ {a,b}* }</span>
-          </div>
-          <div class="ex-card-title">wwᴿ — Even Palindrome</div>
-          <p class="ex-card-desc">A string concatenated with its reverse. Push the first half, then pop while matching
-            the mirrored second half. Uses a deterministic midpoint-guess approach.</p>
-          <div class="ex-card-rule"><code>q₀ push phase →<sub>guess</sub> q₁ pop/match phase → qₐ</code></div>
-          <div class="ex-tests">
-            <div class="ex-test-lbl">Quick test:</div>
-            <div class="ex-chips">
-              <button class="ex-chip ch-accept" data-problem="custom" data-preset="wwr" data-input="abba">abba</button>
-              <button class="ex-chip ch-accept" data-problem="custom" data-preset="wwr"
-                data-input="aabbaa">aabbaa</button>
-              <button class="ex-chip ch-accept" data-problem="custom" data-preset="wwr" data-input="baab">baab</button>
-              <button class="ex-chip ch-reject" data-problem="custom" data-preset="wwr" data-input="ab">ab ✗</button>
-              <button class="ex-chip ch-reject" data-problem="custom" data-preset="wwr" data-input="abc">abc ✗</button>
-              <button class="ex-chip ch-reject" data-problem="custom" data-preset="wwr" data-input="aab">aab ✗</button>
-            </div>
-          </div>
-          <button class="ex-launch" data-problem="custom" data-preset="wwr" data-input="abba">Run in Simulator
-            →</button>
-        </div>
-
-        <!-- aⁿb²ⁿ -->
-        <div class="ex-card">
-          <div class="ex-card-top">
-            <span class="ex-badge badge-green">Context-Free</span>
-            <span class="ex-lang">{ aⁿb²ⁿ | n ≥ 0 }</span>
-          </div>
-          <div class="ex-card-title">aⁿb²ⁿ — Double Count</div>
-          <p class="ex-card-desc">For every 'a', push two markers onto the stack. Then pop one per 'b'. Accept iff
-            exactly twice as many b's as a's appear — a satisfying counting trick.</p>
-          <div class="ex-card-rule"><code>q₀ —a/push AA→ q₀ &nbsp; q₁ —b/pop A→ q₁ (×2 per a)</code></div>
-          <div class="ex-tests">
-            <div class="ex-test-lbl">Quick test:</div>
-            <div class="ex-chips">
-              <button class="ex-chip ch-accept" data-problem="custom" data-preset="anb2n" data-input="">ε</button>
-              <button class="ex-chip ch-accept" data-problem="custom" data-preset="anb2n" data-input="abb">abb</button>
-              <button class="ex-chip ch-accept" data-problem="custom" data-preset="anb2n"
-                data-input="aabbbb">aabbbb</button>
-              <button class="ex-chip ch-reject" data-problem="custom" data-preset="anb2n" data-input="ab">ab ✗</button>
-              <button class="ex-chip ch-reject" data-problem="custom" data-preset="anb2n" data-input="abbb">abbb
-                ✗</button>
-            </div>
-          </div>
-          <button class="ex-launch" data-problem="custom" data-preset="anb2n" data-input="abb">Run in Simulator
-            →</button>
-        </div>
-
-        <!-- aⁿbⁿcⁿ -->
-        <div class="ex-card">
-          <div class="ex-card-top">
-            <span class="ex-badge badge-rose">Beyond CFLs</span>
-            <span class="ex-lang">{ aⁿbⁿcⁿ | n ≥ 1 }</span>
-          </div>
-          <div class="ex-card-title">aⁿbⁿcⁿ — Not Context-Free</div>
-          <p class="ex-card-desc">A textbook example of a non-context-free language. A single stack cannot
-            simultaneously track two independent counts. All inputs reject — demonstrating PDA limits.</p>
-          <div class="ex-card-rule"><code>No DPDA accepts this — provable by pumping lemma for CFLs</code></div>
-          <div class="ex-tests">
-            <div class="ex-test-lbl">All reject (by design):</div>
-            <div class="ex-chips">
-              <button class="ex-chip ch-reject" data-problem="custom" data-preset="anbncn" data-input="abc">abc
-                ✗</button>
-              <button class="ex-chip ch-reject" data-problem="custom" data-preset="anbncn" data-input="aabbcc">aabbcc
-                ✗</button>
-              <button class="ex-chip ch-reject" data-problem="custom" data-preset="anbncn"
-                data-input="aaabbbccc">aaabbbccc ✗</button>
-            </div>
-          </div>
-          <button class="ex-launch" data-problem="custom" data-preset="anbncn" data-input="abc">Run in Simulator
-            →</button>
-        </div>
-
-        <!-- Custom -->
-        <div class="ex-card ex-card-custom">
-          <div class="ex-card-top">
-            <span class="ex-badge badge-neutral">Custom</span>
-            <span class="ex-lang">Your DPDA</span>
-          </div>
-          <div class="ex-card-title">Build Your Own Machine</div>
-          <p class="ex-card-desc">Define states, transitions, and acceptance conditions using the visual table builder
-            or raw JSON. Supports ε-transitions, EOF guards, and wildcard stack operations.</p>
-          <div class="ex-card-rule"><code>{ from, read, pop, push, to, guard?, label? }</code></div>
-          <div class="ex-custom-note">Start from the Balanced Parentheses template or write from scratch. The simulator
-            runs deterministically — first matching transition wins.</div>
-          <button class="ex-launch ex-launch-primary" data-problem="custom" data-input="(()())">Open Custom Builder
-            →</button>
-        </div>
-
-      </div>
-    </section>
-
-    <!-- THEORY TEASER -->
-    <section class="theory-teaser">
-      <div class="tt-left">
-        <div class="tt-eyebrow"><span class="eyebrow-dot"></span> Theory Corner</div>
-        <h3 class="tt-title">What makes a PDA different from a finite automaton?</h3>
-        <p class="tt-body">A PDA adds an unbounded last-in-first-out stack. This extra memory lets it count and match
-          nested structures that no DFA or NFA can handle — a fundamental leap in computational power.</p>
-        <button class="btn-outline" id="heroTheoryBtn2">Read the full guide →</button>
-      </div>
-      <div class="tt-right">
-        <div class="tt-table">
-          <div class="tt-col">
-            <div class="tt-col-head">DFA / NFA</div>
-            <div class="tt-row muted">Input tape only</div>
-            <div class="tt-row muted">Finite states</div>
-            <div class="tt-row muted">Regular languages</div>
-            <div class="tt-row muted">Cannot count unbounded</div>
-          </div>
-          <div class="tt-arrow">→</div>
-          <div class="tt-col highlighted">
-            <div class="tt-col-head">PDA</div>
-            <div class="tt-row">Input tape + <strong>stack</strong></div>
-            <div class="tt-row">Finite states</div>
-            <div class="tt-row">Context-free languages</div>
-            <div class="tt-row">Can count &amp; nest</div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- FOOTER -->
-    <footer class="site-footer">
-      <div class="sf-logo">
-        <span class="logo-brace">{</span><span class="logo-text">automata<span
-            class="logo-accent">lab</span></span><span class="logo-brace">}</span>
-      </div>
-      <div class="sf-center">A pushdown automata visualizer built for Theory of Computation.</div>
-      <div class="sf-right">
-        <div>Made with ♥ by <strong>Ayush Kumar Jha</strong></div>
-        <div class="sf-course">Theory of Computation </div>
-      </div>
-    </footer>
-
-  </div><!-- /landingPage -->
-
-
-  <!-- ═══════════════════════════════════════════════════
-         APP SHELL — simulator (same cream/editorial theme)
-    ═══════════════════════════════════════════════════ -->
-  <div id="appShell" class="app-shell hidden">
-
-    <header class="app-nav">
-      <div class="app-nav-l">
-        <button class="app-logo-btn" id="homeBtn">
-          <span class="logo-brace">{</span><span class="logo-text">automata<span
-              class="logo-accent">lab</span></span><span class="logo-brace">}</span>
-        </button>
-        <div class="app-div"></div>
-        <div id="statusPill" class="pill pill-idle">READY</div>
-      </div>
-      <div class="app-nav-c">
-        <span class="app-hint">SPC play &nbsp;·&nbsp; ←/→ step &nbsp;·&nbsp; Home/End jump</span>
-      </div>
-      <div class="app-nav-r">
-        <button id="theoryNavBtn" class="app-nbtn">Theory</button>
-        <button id="shareBtn" class="app-nbtn">Share</button>
-        <button id="exportBtn" class="app-nbtn">Export</button>
-      </div>
-    </header>
-
-    <div class="app-body">
-
-      <!-- SIDEBAR -->
-      <aside class="sidebar">
-        <div class="sb-block">
-          <div class="sb-label">Problem</div>
-          <select id="problemSelect" class="sb-select">
-            <option value="anbn">aⁿbⁿ Language</option>
-            <option value="paren">Balanced Parens</option>
-            <option value="custom">Custom DPDA</option>
-          </select>
-        </div>
-
-        <div class="sb-block">
-          <div class="sb-label">Input String</div>
-          <div class="sb-irow">
-            <input id="inputString" class="sb-input" type="text" spellcheck="false" autocomplete="off"
-              placeholder="e.g. aaabbb" />
-            <button id="loadBtn" class="sb-run" type="button">▶</button>
-          </div>
-        </div>
-
-        <div class="sb-block" id="editPdaBlock" style="display:none">
-          <button id="editPdaBtn" class="sb-customize" type="button">⚙ Customize DPDA</button>
-        </div>
-
-        <div class="sb-block">
-          <div class="sb-label">Playback</div>
-          <div class="sb-pbrow">
-            <button id="resetBtn" class="sb-pb" title="Reset">⏮</button>
-            <button id="backBtn" class="sb-pb" title="Back">◀</button>
-            <button id="playBtn" class="sb-pb sb-pb-play">▶ Play</button>
-            <button id="nextBtn" class="sb-pb" title="Next">▶</button>
-          </div>
-        </div>
-
-        <div class="sb-block">
-          <div class="sb-lrow">
-            <div class="sb-label">Timeline</div>
-            <div id="timelineLabel" class="sb-val">step 0</div>
-          </div>
-          <input id="timelineRange" class="sb-range" type="range" min="0" max="0" step="1" value="0" />
-        </div>
-
-        <div class="sb-block">
-          <div class="sb-lrow">
-            <div class="sb-label">Speed</div>
-            <button id="bookmarkBtn" class="sb-bmark">☆</button>
-          </div>
-          <input id="speedRange" class="sb-range" type="range" min="0.2" max="2.0" step="0.1" value="1.0" />
-        </div>
-
-        <div class="sb-block">
-          <div class="sb-label">Stack Depth Chart</div>
-          <div class="spark-wrap">
-            <svg id="depthSpark" class="spark" viewBox="0 0 200 48"></svg>
-          </div>
-          <div id="metrics" class="metrics"></div>
-        </div>
-
-        <div class="sb-block">
-          <div class="sb-label">Examples</div>
-          <div class="sb-ex-hint">Click to load &amp; run instantly</div>
-          <div id="examplesList" class="sb-examples"></div>
-        </div>
-
-        <div class="sb-block">
-          <div class="sb-label">About</div>
-          <div id="problemBlurb" class="sb-blurb"></div>
-        </div>
-
-        <div class="sb-footer">// automatalab · Ayush Kumar Jha</div>
-      </aside>
-
-      <!-- PANELS -->
-      <main class="panels">
-        <div class="panels-row row-top">
-          <section class="panel tape-panel">
-            <div class="panel-hd">
-              <div class="panel-title">Input Tape</div>
-              <div class="panel-sub">head advances as symbols are consumed</div>
-            </div>
-            <div id="tape" class="tape"></div>
-            <div class="tape-foot">
-              <div id="stepMeta" class="tmeta"></div>
-              <div id="ruleMeta" class="tmeta faint"></div>
-            </div>
-          </section>
-          <section class="panel stack-panel">
-            <div class="panel-hd">
-              <div class="panel-title">Stack</div>
-              <div class="panel-sub">push / pop with animation</div>
-              <div class="stack-leg">
-                <span class="leg-dot top-dot"></span>top
-                <span class="leg-dot btm-dot"></span>bottom
-              </div>
-            </div>
-            <div class="stack-wrap">
-              <div id="stack" class="stack"></div>
-              <div class="stack-rail"></div>
-            </div>
-          </section>
-        </div>
-
-        <div class="panels-row row-bottom">
-          <section class="panel diagram-panel">
-            <div class="panel-hd">
-              <div class="panel-title">State Diagram</div>
-              <div class="panel-sub">active state + transition highlighted</div>
-            </div>
-            <div id="cy" class="cy"></div>
-          </section>
-          <section class="panel log-panel">
-            <div class="panel-hd">
-              <div class="panel-title">Step Log</div>
-              <div class="panel-sub">click any row to jump to that step</div>
-            </div>
-            <div class="log-wrap">
-              <table class="log">
-                <thead>
-                  <tr>
-                    <th></th>
-                    <th>#</th>
-                    <th>State</th>
-                    <th>Read</th>
-                    <th>Action</th>
-                    <th>Top</th>
-                    <th>Note</th>
-                  </tr>
-                </thead>
-                <tbody id="logBody"></tbody>
-              </table>
-            </div>
-          </section>
-        </div>
-      </main>
     </div>
-  </div>
 
-  <!-- TOAST -->
-  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
-
-  <!-- CUSTOM DPDA MODAL -->
-  <div id="modalBackdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true">
-    <div class="modal">
-      <div class="modal-hd">
-        <div class="modal-title">Custom DPDA Builder</div>
-        <div class="modal-hactions">
-          <button id="resetCustomBtn" class="mbtn">Reset</button>
-          <button id="closeModalBtn" class="mbtn">✕ Close</button>
+    <section id="features" class="features">
+        <div class="feature-block" id="theory-1">
+            <div class="feature-text">
+                <h3>What is a Pushdown Automaton?</h3>
+                <p>A <strong>pushdown automaton (PDA)</strong> is a formal computation model—imagine a standard finite state machine, but augmented with an infinite <em>stack</em> memory. This leap in architecture allows it to recognize **Context-Free Languages**, granting it the ability to count, mirror, and match nested structures, something no DFA or NFA can ever achieve.</p>
+            </div>
         </div>
-      </div>
-      <div class="modal-body">
-        <div class="builder">
-          <div class="builder-grid">
-            <label class="field"><span class="flabel">Name</span><input id="customName" class="finput"
-                type="text" /></label>
-            <label class="field"><span class="flabel">States (comma-separated)</span><input id="customStates"
-                class="finput" type="text" /></label>
-            <label class="field"><span class="flabel">Start State</span><input id="customStart" class="finput"
-                type="text" /></label>
-            <label class="field"><span class="flabel">Accept States</span><input id="customAccept" class="finput"
-                type="text" /></label>
-            <label class="field"><span class="flabel">Reject States</span><input id="customReject" class="finput"
-                type="text" /></label>
-            <label class="field"><span class="flabel">Initial Stack (optional)</span><input id="customStackInitial"
-                class="finput" type="text" /></label>
-          </div>
-          <div class="builder-transitions">
-            <div class="builder-head">
-              <div class="builder-title">Transitions</div>
-              <button id="addTransitionBtn" class="mbtn mbtn-primary">+ Add</button>
+        
+        <div class="feature-block" id="theory-2">
+            <div class="feature-text">
+                <h3>Context-Free Boundaries</h3>
+                <p>Why do we need a stack? Consider the language <code>aⁿbⁿ</code>. To ensure an equal number of A's and B's, a finite automaton would need infinite states. A PDA simply pushes a marker for every 'a', and pops a marker for every 'b'. If the stack runs empty precisely as the input ceases, the string is accepted. It learns to balance.</p>
             </div>
-            <div class="builder-help">Use <code>ε</code> for epsilon, <code>EOF</code> for end-of-input, <code>*</code>
-              for wildcard. Multi-push: comma-separated.</div>
-            <div id="customError" class="builder-error hidden"></div>
-            <div class="builder-table-wrap">
-              <table class="builder-table">
-                <thead>
-                  <tr>
-                    <th>From</th>
-                    <th>Read</th>
-                    <th>Pop</th>
-                    <th>Push</th>
-                    <th>To</th>
-                    <th>Guard</th>
-                    <th>Label</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody id="transitionsBody"></tbody>
-              </table>
-            </div>
-            <details class="advanced">
-              <summary>Advanced JSON</summary>
-              <textarea id="pdaJson" class="modal-textarea" spellcheck="false"></textarea>
-              <div class="modal-help">First matching transition fires. <code>"read":"EOF"</code> for end-of-input,
-                <code>"pop":"*"</code> to pop any.</div>
-            </details>
-          </div>
         </div>
-      </div>
-      <div class="modal-ft">
-        <button id="loadFromModalBtn" class="mbtn mbtn-primary">Save &amp; Load</button>
-      </div>
-    </div>
-  </div>
 
-  <!-- THEORY MODAL -->
-  <div id="theoryBackdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true">
-    <div class="modal modal-wide">
-      <div class="modal-hd">
-        <div class="modal-title">PDA Theory — Quick Guide</div>
-        <button id="closeTheoryBtn" class="mbtn">✕ Close</button>
-      </div>
-      <div class="modal-body">
-        <article class="prose">
-          <h2>What is a Pushdown Automaton?</h2>
-          <p>A <strong>pushdown automaton (PDA)</strong> is a finite automaton augmented with a <strong>stack</strong> —
-            an unbounded last-in-first-out memory structure. This extra resource enables recognition of
-            <strong>context-free languages</strong>, a strictly larger class than regular languages.</p>
-
-          <div class="theory-cards">
-            <div class="theory-card">
-              <div class="tc-icon">📼</div>
-              <h4>Input Tape</h4>
-              <p>Symbols read left → right, one at a time. ε-transitions read nothing.</p>
+        <div class="feature-block" id="theory-3">
+            <div class="feature-text">
+                <h3>Limits of the Machine</h3>
+                <p>While a single stack grants immense power, it is strictly bound. A PDA cannot parse <code>aⁿbⁿcⁿ</code>. A single Last-In-First-Out (LIFO) stack cannot simultaneously track two independent counts. To compute that, you must ascend to a Turing Machine. Here, you visualize exactly where that boundary lies.</p>
             </div>
-            <div class="theory-card">
-              <div class="tc-icon">🔘</div>
-              <h4>State Control</h4>
-              <p>Finite set of states. One active at a time. Some states accept, some reject.</p>
-            </div>
-            <div class="theory-card">
-              <div class="tc-icon">📚</div>
-              <h4>Stack Memory</h4>
-              <p>Push symbols on top, pop from top. This is the PDA's key superpower over a DFA.</p>
-            </div>
-          </div>
+        </div>
+    </section>
 
-          <h3>Why aⁿbⁿ Needs a Stack</h3>
-          <p>No DFA can count arbitrarily. For <code>aⁿbⁿ</code>, push one marker per <code>a</code>, pop one per
-            <code>b</code>. Accept if the stack empties exactly as input ends. The stack stores the count.</p>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
-          <h3>Why wwᴿ is Context-Free</h3>
-          <p>Push the first half of the string, then pop while matching the mirrored second half. A stack naturally
-            stores a sequence in reverse order for later comparison.</p>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if(!reduced) {
+                setTimeout(() => document.getElementById('seq-1').classList.add('visible'), 500);
+                setTimeout(() => document.querySelectorAll('.word').forEach((w, i) => setTimeout(() => w.classList.add('visible'), i * 80)), 900);
+                setTimeout(() => document.getElementById('seq-3').classList.add('visible'), 1600);
+                setTimeout(() => document.getElementById('seq-4').classList.add('visible'), 2100);
+            } else {
+                document.getElementById('seq-1').classList.add('visible');
+                document.querySelectorAll('.word').forEach(w => w.classList.add('visible'));
+                document.getElementById('seq-3').classList.add('visible');
+                document.getElementById('seq-4').classList.add('visible');
+            }
 
-          <h3>Why aⁿbⁿcⁿ is NOT Context-Free</h3>
-          <p>A single stack cannot simultaneously track two independent counts. By the pumping lemma for CFLs, this
-            language provably requires more computational power than any PDA provides — you need a Turing machine.</p>
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if(entry.isIntersecting) { entry.target.classList.add('visible'); observer.unobserve(entry.target); }
+                });
+            }, { threshold: 0.2 });
+            document.querySelectorAll('.feature-block').forEach(el => observer.observe(el));
 
-          <h3>Transition Notation</h3>
-          <p>Each transition: <code>(state, read, pop) → (newState, push)</code>. In a <strong>DPDA</strong>
-            (deterministic), at most one transition fires per configuration. This simulator takes the <em>first
-              matching</em> transition.</p>
+            initWebGL();
+        });
 
-          <h3>Acceptance</h3>
-          <p>This simulator uses <strong>accept-by-final-state</strong>: the machine accepts if it reaches a designated
-            accepting state with no remaining input. The stack contents at that point are irrelevant.</p>
-        </article>
-      </div>
-    </div>
-  </div>
+        // Removed interactive modules logic as requested
 
-  <script type="module" src="./app.js"></script>
+        // ------------------------------
+        // ZEN PEARL WEBGL
+        // ------------------------------
+        let scene, camera, renderer;
+        let shapesGroup, clock = new THREE.Clock();
+        let targetMouse = { x: 0, y: 0 }, currentMouse = { x: 0, y: 0 };
+        let scrollVal = 0;
 
-  <script>
-    // ── DPDA Presets ─────────────────────────────────────────────────
-    const PRESETS = {
-      wwr: {
-        name: "wwR Even Palindrome", states: ["q0", "q1", "qa", "qr"], start: "q0", accept: ["qa"], reject: ["qr"],
-        stack: { initial: [] },
-        transitions: [
-          { id: "p_init", from: "q0", to: "q0", read: "a", pop: null, push: "A", label: "a / push A" },
-          { id: "p_push_b", from: "q0", to: "q0", read: "b", pop: null, push: "B", label: "b / push B" },
-          { id: "p_mid_a", from: "q0", to: "q1", read: "a", pop: "A", push: null, label: "a / pop A (midpoint guess)" },
-          { id: "p_mid_b", from: "q0", to: "q1", read: "b", pop: "B", push: null, label: "b / pop B (midpoint guess)" },
-          { id: "p_pop_a", from: "q1", to: "q1", read: "a", pop: "A", push: null, label: "a / pop A" },
-          { id: "p_pop_b", from: "q1", to: "q1", read: "b", pop: "B", push: null, label: "b / pop B" },
-          { id: "p_acc", from: "q1", to: "qa", read: "EOF", pop: null, push: null, guard: { stackEmpty: true }, label: "EOF / stack empty → accept" },
-          { id: "p_rej0", from: "q0", to: "qr", read: "EOF", pop: null, push: null, label: "EOF in q0 → reject" },
-          { id: "p_rej1", from: "q1", to: "qr", read: "EOF", pop: null, push: null, label: "EOF / stack not empty → reject" }
-        ], limits: { maxSteps: 5000 }
-      },
-      anb2n: {
-        name: "aⁿb²ⁿ Language", states: ["q0", "q1", "qa", "qr"], start: "q0", accept: ["qa"], reject: ["qr"],
-        stack: { initial: [] },
-        transitions: [
-          { id: "push_aa", from: "q0", to: "q0", read: "a", pop: null, push: ["A", "A"], label: "a / push AA" },
-          { id: "first_b", from: "q0", to: "q1", read: "b", pop: "A", push: null, label: "b / pop A → q1" },
-          { id: "more_b", from: "q1", to: "q1", read: "b", pop: "A", push: null, label: "b / pop A" },
-          { id: "acc_q0", from: "q0", to: "qa", read: "EOF", pop: null, push: null, guard: { stackEmpty: true }, label: "EOF & stack empty → accept" },
-          { id: "acc_q1", from: "q1", to: "qa", read: "EOF", pop: null, push: null, guard: { stackEmpty: true }, label: "EOF & stack empty → accept" },
-          { id: "rej_q0", from: "q0", to: "qr", read: "EOF", pop: null, push: null, label: "else → reject" },
-          { id: "rej_q1", from: "q1", to: "qr", read: "EOF", pop: null, push: null, label: "else → reject" }
-        ], limits: { maxSteps: 5000 }
-      },
-      anbncn: {
-        name: "aⁿbⁿcⁿ (Not CFL — always rejects)", states: ["q0", "qr"], start: "q0", accept: [], reject: ["qr"],
-        stack: { initial: [] },
-        transitions: [
-          { id: "rej", from: "q0", to: "qr", read: "EOF", pop: null, push: null, label: "EOF → reject (not CFL)" }
-        ], limits: { maxSteps: 5000 }
-      }
-    };
+        function initWebGL() {
+            if(window.matchMedia('(prefers-reduced-motion: reduce)').matches || window.innerWidth < 768) return;
+            const container = document.getElementById('webgl-container');
+            
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 150);
+            camera.position.set(0, 0, 15);
 
-    // ── Page transitions ──────────────────────────────────────────────
-    function launchApp(problemId, input, preset) {
-      const lp = document.getElementById('landingPage');
-      lp.classList.add('page-exit');
-      setTimeout(() => {
-        lp.classList.add('hidden');
-        lp.classList.remove('page-exit');
-        const app = document.getElementById('appShell');
-        app.classList.remove('hidden');
-        app.classList.add('page-enter');
-        setTimeout(() => app.classList.remove('page-enter'), 400);
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setClearColor(0x000000, 0); // DOM shows through
+            container.appendChild(renderer.domElement);
 
-        if (preset && PRESETS[preset]) {
-          try { localStorage.setItem('pda.custom.json.v1', JSON.stringify(PRESETS[preset])); } catch (e) { }
+            shapesGroup = new THREE.Group();
+            scene.add(shapesGroup);
+
+            // Pearl / Opal material
+            const pearlMat = new THREE.MeshPhysicalMaterial({
+                color: 0xffffff,
+                metalness: 0.1,
+                roughness: 0.1,
+                clearcoat: 1.0,
+                clearcoatRoughness: 0.2,
+                transmission: 0.7,
+                thickness: 1.5,
+                transparent: true,
+                opacity:0.9
+            });
+
+            // Gentle geometries
+            const geometries = [
+                new THREE.SphereGeometry(1.5, 64, 64),
+                new THREE.TorusKnotGeometry(1.2, 0.4, 128, 64),
+                new THREE.IcosahedronGeometry(1.6, 1)
+            ];
+
+            geometries.forEach((geom, i) => {
+                const mesh = new THREE.Mesh(geom, pearlMat);
+                mesh.position.set((Math.random()-0.5)*5, (Math.random()-0.5)*5, (Math.random()-0.5)*2);
+                mesh.userData = {
+                    rx: Math.random()*0.005, ry: Math.random()*0.005,
+                    px: Math.random()*Math.PI*2, py: Math.random()*Math.PI*2
+                };
+                shapesGroup.add(mesh);
+            });
+
+            // Ambient Pastel Lights moving around
+            const p1 = new THREE.PointLight(0xffecd2, 2, 20); // peach
+            const p2 = new THREE.PointLight(0xa1c4fd, 2, 20); // cool blue
+            const p3 = new THREE.PointLight(0xe0c3fc, 2, 20); // lavender
+            scene.add(p1); scene.add(p2); scene.add(p3);
+            scene.userData.lights = [p1, p2, p3];
+
+            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+            window.addEventListener('scroll', () => { scrollVal = window.scrollY / window.innerHeight; document.querySelector('.hero-content').style.opacity = Math.max(0, 1 - scrollVal * 1.5); });
+            window.addEventListener('mousemove', (e) => {
+                targetMouse.x = (e.clientX / window.innerWidth)*2-1; targetMouse.y = -(e.clientY / window.innerHeight)*2+1;
+            });
+
+            // Intro fade
+            shapesGroup.position.y = -2; shapesGroup.scale.setScalar(0.9);
+
+            renderer.setAnimationLoop(render);
         }
 
-        const sel = document.getElementById('problemSelect');
-        if (problemId && sel.value !== problemId) {
-          sel.value = problemId;
-          sel.dispatchEvent(new Event('change'));
+        function render() {
+            const time = clock.getElapsedTime();
+            const lerp = (s,e,a) => (1-a)*s + a*e;
+
+            currentMouse.x = lerp(currentMouse.x, targetMouse.x, 0.03);
+            currentMouse.y = lerp(currentMouse.y, targetMouse.y, 0.03);
+            
+            shapesGroup.rotation.y = lerp(shapesGroup.rotation.y, time * 0.1 + currentMouse.x * 0.4, 0.05);
+            shapesGroup.rotation.x = lerp(shapesGroup.rotation.x, -currentMouse.y * 0.2, 0.05);
+            
+            shapesGroup.position.y = lerp(shapesGroup.position.y, Math.sin(time*0.5)*0.2 + scrollVal * 3, 0.03);
+            shapesGroup.scale.setScalar(lerp(shapesGroup.scale.x, 1.0, 0.03));
+
+            shapesGroup.children.forEach((mesh, i) => {
+                mesh.rotation.x += mesh.userData.rx; mesh.rotation.y += mesh.userData.ry;
+                mesh.position.y += Math.sin(time + mesh.userData.px) * 0.002;
+                mesh.position.x += Math.cos(time + mesh.userData.py) * 0.002;
+            });
+
+            const lts = scene.userData.lights;
+            if(lts) {
+                lts[0].position.set(Math.sin(time*0.7)*5, Math.cos(time*0.5)*5, 2);
+                lts[1].position.set(Math.cos(time*0.3)*6, Math.sin(time*0.8)*4, 2);
+                lts[2].position.set(Math.sin(time*0.5)*4, Math.cos(time*0.9)*6, -2);
+            }
+
+            renderer.render(scene, camera);
         }
-        if (typeof input === 'string') {
-          document.getElementById('inputString').value = input;
-        }
-        setTimeout(() => document.getElementById('loadBtn').click(), 100);
-      }, 340);
-    }
-
-    function showLanding() {
-      document.getElementById('appShell').classList.add('hidden');
-      const lp = document.getElementById('landingPage');
-      lp.classList.remove('hidden');
-    }
-
-    // ── Wire buttons ──────────────────────────────────────────────────
-    document.getElementById('heroLaunchBtn').addEventListener('click', () => launchApp('anbn', 'aaabbb'));
-    document.getElementById('heroStartBtn').addEventListener('click', () => launchApp('anbn', 'aaabbb'));
-    document.getElementById('heroExamplesBtn').addEventListener('click', () => {
-      document.getElementById('examples-anchor').scrollIntoView({ behavior: 'smooth' });
-    });
-    document.getElementById('homeBtn').addEventListener('click', showLanding);
-
-    ['heroTheoryBtn', 'heroTheoryBtn2', 'theoryNavBtn'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.addEventListener('click', () => document.getElementById('theoryBackdrop').classList.remove('hidden'));
-    });
-
-    document.querySelectorAll('.ex-launch, .ex-chip').forEach(btn => {
-      btn.addEventListener('click', () => {
-        launchApp(btn.dataset.problem || 'anbn', btn.dataset.input || '', btn.dataset.preset || null);
-      });
-    });
-
-    // hide editPdaBlock initially; app.js controls #editPdaBtn hidden attr
-    // we mirror its hidden state to the wrapper block
-    const editObserver = new MutationObserver(() => {
-      const btn = document.getElementById('editPdaBtn');
-      const blk = document.getElementById('editPdaBlock');
-      if (btn && blk) blk.style.display = btn.hidden ? 'none' : 'block';
-    });
-    const editBtn = document.getElementById('editPdaBtn');
-    if (editBtn) editObserver.observe(editBtn, { attributes: true, attributeFilter: ['hidden'] });
-  </script>
+    </script>
 </body>
-
 </html>
