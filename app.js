@@ -377,23 +377,23 @@ function initCytoscape(problem) {
     layout: hasPresetPositions
       ? { name: "preset" }
       : {
-          name: "breadthfirst",
-          directed: true,
-          roots: rootsSelector,
-          spacingFactor: 1.6,
-          animate: true,
-          animationDuration: 260,
-        },
+        name: "breadthfirst",
+        directed: true,
+        roots: rootsSelector,
+        spacingFactor: 1.6,
+        animate: true,
+        animationDuration: 260,
+      },
     style: [
       // ── Base node ──────────────────────────────────────────────────────
       {
         selector: "node",
         style: {
-          "background-color": "#2a2520",
+          "background-color": "rgba(255, 255, 255, 0.7)",
           "border-width": 2,
-          "border-color": "rgba(244,239,230,0.25)",
+          "border-color": "rgba(51, 65, 85, 0.3)",
           label: "data(label)",
-          color: "#f4efe6",
+          color: "#334155",
           "font-family": "'DM Mono', ui-monospace, Menlo, monospace",
           "font-size": 13,
           "font-weight": 500,
@@ -407,68 +407,68 @@ function initCytoscape(problem) {
           "transition-property": "background-color, border-color, border-width",
           "transition-duration": "180ms",
           shape: "round-rectangle",
-          "padding": 8,
+          padding: 8,
         },
       },
       // ── Accept node ────────────────────────────────────────────────────
       {
         selector: "node#qa, node.accept",
         style: {
-          "border-color": "#5cb870",
+          "border-color": "#a4ce72",
           "border-width": 2.5,
-          "background-color": "rgba(58,100,50,0.55)",
-          color: "#a8e6b0",
+          "background-color": "rgba(164, 206, 114, 0.5)",
+          color: "#3f621d",
         },
       },
       // ── Reject node ────────────────────────────────────────────────────
       {
         selector: "node#qr, node.reject",
         style: {
-          "border-color": "#c06060",
+          "border-color": "#f43f5e",
           "border-width": 2.5,
-          "background-color": "rgba(100,40,40,0.55)",
-          color: "#e8a8a8",
+          "background-color": "rgba(244, 63, 94, 0.3)",
+          color: "#9f1239",
         },
       },
       // ── Start node ─────────────────────────────────────────────────────
       {
         selector: "node.start",
         style: {
-          "border-color": "#e8a050",
+          "border-color": "#0ea5e9",
           "border-width": 2.5,
-          "background-color": "rgba(100,64,20,0.55)",
-          color: "#f4d090",
+          "background-color": "rgba(14, 165, 233, 0.3)",
+          color: "#0369a1",
         },
       },
       // ── Active source (outgoing from) ──────────────────────────────────
       {
         selector: ".active-source",
         style: {
-          "border-color": "#e8a050",
+          "border-color": "#a1c4fd",
           "border-width": 3,
-          "background-color": "rgba(168,96,32,0.35)",
-          color: "#f4d090",
+          "background-color": "rgba(161, 196, 253, 0.5)",
+          color: "#1e3a8a",
         },
       },
       // ── Active target (arriving at) ────────────────────────────────────
       {
         selector: ".active-target",
         style: {
-          "border-color": "#7ab0e0",
+          "border-color": "#c2e9fb",
           "border-width": 3,
-          "background-color": "rgba(40,80,140,0.35)",
-          color: "#b8d8f8",
+          "background-color": "rgba(194, 233, 251, 0.5)",
+          color: "#0c4a6e",
         },
       },
       // ── Currently active state ─────────────────────────────────────────
       {
         selector: "node.active-current",
         style: {
-          "background-color": "rgba(168,96,32,0.45)",
-          "border-color": "#e8a050",
+          "background-color": "rgba(161, 196, 253, 0.8)",
+          "border-color": "#8ec5fc",
           "border-width": 3.5,
-          color: "#fde090",
-          "box-shadow": "0 0 0 4px rgba(168,96,32,0.25)",
+          color: "#1e293b",
+          "box-shadow": "0 0 0 4px rgba(161, 196, 253, 0.3)",
         },
       },
       // ── Base edge ──────────────────────────────────────────────────────
@@ -476,22 +476,22 @@ function initCytoscape(problem) {
         selector: "edge",
         style: {
           width: 2,
-          "line-color": "rgba(244,239,230,0.30)",
-          "target-arrow-color": "rgba(244,239,230,0.30)",
+          "line-color": "rgba(51, 65, 85, 0.3)",
+          "target-arrow-color": "rgba(51, 65, 85, 0.3)",
           "target-arrow-shape": "triangle",
           "arrow-scale": 1.4,
           "curve-style": "bezier",
           label: "data(label)",
-          color: "#f4efe6",
+          color: "#475569",
           "font-family": "'DM Mono', ui-monospace, Menlo, monospace",
           "font-size": 11,
-          "font-weight": 400,
+          "font-weight": 500,
           "text-background-opacity": 1,
-          "text-background-color": "#1a1710",
+          "text-background-color": "rgba(255, 255, 255, 0.8)",
           "text-background-padding": "5px",
           "text-background-shape": "roundrectangle",
           "text-border-width": 1,
-          "text-border-color": "rgba(244,239,230,0.18)",
+          "text-border-color": "rgba(51, 65, 85, 0.2)",
           "text-border-opacity": 1,
           "text-margin-y": -6,
           "transition-property": "line-color, target-arrow-color, width",
@@ -514,9 +514,9 @@ function initCytoscape(problem) {
         style: {
           "line-style": "dashed",
           "line-dash-pattern": [6, 4],
-          "line-color": "rgba(244,239,230,0.18)",
-          "target-arrow-color": "rgba(244,239,230,0.18)",
-          color: "rgba(244,239,230,0.40)",
+          "line-color": "rgba(51, 65, 85, 0.2)",
+          "target-arrow-color": "rgba(51, 65, 85, 0.2)",
+          color: "rgba(51, 65, 85, 0.4)",
           width: 1.5,
         },
       },
@@ -525,12 +525,12 @@ function initCytoscape(problem) {
         selector: "edge.active-edge",
         style: {
           width: 3.5,
-          "line-color": "#e8a050",
-          "target-arrow-color": "#e8a050",
+          "line-color": "#0ea5e9",
+          "target-arrow-color": "#0ea5e9",
           "arrow-scale": 1.8,
-          color: "#fde090",
-          "text-background-color": "#2a1e0a",
-          "text-border-color": "rgba(232,160,80,0.45)",
+          color: "#0369a1",
+          "text-background-color": "#e0f2fe",
+          "text-border-color": "#7dd3fc",
           "z-index": 10,
         },
       },
@@ -820,13 +820,13 @@ function diagramFromCustom(def) {
     Array.isArray(def?.states) && def.states.length
       ? def.states.map(String)
       : Array.from(
-          new Set(
-            (Array.isArray(def?.transitions) ? def.transitions : [])
-              .flatMap((t) => [t.from, t.to])
-              .filter((x) => x !== undefined && x !== null)
-              .map(String),
-          ),
-        );
+        new Set(
+          (Array.isArray(def?.transitions) ? def.transitions : [])
+            .flatMap((t) => [t.from, t.to])
+            .filter((x) => x !== undefined && x !== null)
+            .map(String),
+        ),
+      );
 
   const acceptSet = new Set((Array.isArray(def?.accept) ? def.accept : []).map(String));
   const rejectSet = new Set((Array.isArray(def?.reject) ? def.reject : []).map(String));

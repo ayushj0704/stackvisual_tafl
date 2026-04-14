@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automata Lab | Zen Stack</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --ink: #334155;
+            --muted: #64748b;
+            --glass-bg: rgba(255, 255, 255, 0.45);
+            --glass-border: rgba(255, 255, 255, 0.6);
+            --glass-shadow: 0 8px 32px rgba(51, 65, 85, 0.08);
+            --accent: #a1c4fd;
+            --accent-glow: #c2e9fb;
+        }
+
+        body, html {
+            margin: 0; padding: 0;
+            background: linear-gradient(120deg, #fdfbfb 0%, #ebedee 100%);
+            background-size: 200% 200%;
+            animation: auroraMesh 20s ease infinite alternate;
+            color: var(--ink);
+            font-family: 'DM Sans', sans-serif;
+            overflow-x: hidden; 
+        }
+
+        @keyframes auroraMesh {
+            0% { background: linear-gradient(120deg, #ffecd2 0%, #fcb69f 100%); }
+            50% { background: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%); }
+            100% { background: linear-gradient(120deg, #e0c3fc 0%, #8ec5fc 100%); }
+        }
+
+        #webgl-container {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 0; pointer-events: none; opacity: 0.8;
+        }
+
+        .hero { position: relative; height: 180vh; z-index: 1; pointer-events: none; }
+
+        .hero-content {
+            position: sticky; top: 0; height: 100vh;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            text-align: center; pointer-events: auto;
+        }
+
+        .eyebrow {
+            font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: 3px; text-transform: uppercase;
+            color: var(--muted); margin-bottom: 2rem;
+            opacity: 0; filter: blur(8px); transition: opacity 1.2s ease, filter 1.2s ease;
+        }
+        .eyebrow.visible { opacity: 1; filter: blur(0); }
+
+        .headline { font-family: 'DM Serif Display', serif; font-size: 80px; font-weight: 400; line-height: 1.1; color: #475569; margin: 0 0 2rem 0; letter-spacing: -1px; }
+        .headline em { font-style: italic; font-size: 110px; color: var(--ink); display: block; letter-spacing: -2px; }
+        
+        .word { display: inline-block; opacity: 0; filter: blur(8px); transform: translateY(30px); transition: opacity 1s ease-out, transform 1s cubic-bezier(0.2, 0.8, 0.2, 1), filter 1s ease-out; }
+        .word.visible { opacity: 1; filter: blur(0); transform: translateY(0); }
+
+        .sub-copy { font-size: 18px; font-weight: 300; color: var(--muted); max-width: 500px; line-height: 1.6; margin-bottom: 3.5rem; opacity: 0; transition: opacity 1s ease; }
+        .sub-copy.visible { opacity: 1; }
+
+        .cta-group { display: flex; gap: 1.5rem; opacity: 0; transform: translateY(20px); transition: all 0.8s cubic-bezier(0.2, 0.8, 0.2, 1); }
+        .cta-group.visible { opacity: 1; transform: translateY(0); }
+
+        .btn {
+            font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 500; border-radius: 999px;
+            height: 52px; padding: 0 36px; display: inline-flex; align-items: center; justify-content: center;
+            text-decoration: none; transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1); cursor: pointer;
+        }
+        .btn-primary { 
+            background: rgba(255,255,255,0.7); color: var(--ink); border: 1px solid var(--glass-border);
+            backdrop-filter: blur(12px); box-shadow: var(--glass-shadow); 
+        }
+        .btn-primary:hover { background: rgba(255,255,255,0.9); transform: translateY(-2px); box-shadow: 0 12px 30px rgba(51, 65, 85, 0.15); }
+        
+        .features { position: relative; z-index: 1; padding: 6rem 5vw 12rem 5vw; max-width: 900px; margin: 0 auto; }
+        
+        /* Glassmorphism Interactive Features */
+        .feature-block {
+            display: flex; flex-direction: column; gap: 1.5rem; padding: 3.5rem; 
+            background: var(--glass-bg); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--glass-border); border-radius: 24px; box-shadow: var(--glass-shadow);
+            margin-bottom: 4rem; opacity: 0; transform: translateY(30px); transition: opacity 1s ease-out, transform 1s ease-out;
+        }
+        .feature-block.visible { opacity: 1; transform: translateY(0); }
+        
+        .feature-text h3 { font-family: 'DM Serif Display', serif; font-size: 32px; font-weight: 400; margin: 0 0 0.8rem 0; color: var(--ink); }
+        .feature-text p { font-size: 16px; color: var(--muted); line-height: 1.6; margin: 0; }
+
+        .interactive-panel { margin-top: 1rem; border-top: 1px dashed rgba(51, 65, 85, 0.15); padding-top: 2rem; }
+        .panel-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+        .btn-small { height: 40px; padding: 0 24px; font-size: 14px; }
+        .panel-status { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); }
+        .btn-disabled { opacity: 0.5; pointer-events: none; }
+
+        .word-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(65px, 1fr)); gap: 10px; max-height: 250px; overflow-y: auto; padding-right: 12px; }
+        .word-grid::-webkit-scrollbar { width: 6px; }
+        .word-grid::-webkit-scrollbar-thumb { background: rgba(51,65,85,0.2); border-radius: 6px; }
+
+        .word-tile {
+            background: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.8); border-radius: 8px;
+            padding: 8px; text-align: center; font-family: 'DM Mono', monospace; font-size: 13px; color: var(--ink);
+            opacity: 0; transform: scale(0.9); animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        @keyframes popIn { 100% { opacity: 1; transform: scale(1); } }
+        .word-tile.accept { background: rgba(164, 206, 114, 0.25); border-color: rgba(164, 206, 114, 0.8); color: #4e7a27; }
+        .word-tile.reject { background: rgba(226, 125, 125, 0.2); border-color: rgba(226, 125, 125, 0.6); color: #a13d3d; }
+
+        /* Sync Split View */
+        .split-view { display: flex; gap: 2rem; background: rgba(255,255,255,0.3); border-radius: 16px; padding: 1.5rem; border: 1px solid rgba(255,255,255,0.5); }
+        .split-pane { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+        .split-divider { width: 1px; background: rgba(51,65,85,0.1); }
+        
+        .input-display { font-family: 'DM Mono', monospace; font-size: 24px; letter-spacing: 6px; height: 32px; color: var(--ink); }
+        .input-display span { color: rgba(51,65,85,0.3); transition: color 0.3s; }
+        .input-display span.active { color: #0ea5e9; border-bottom: 2px solid #0ea5e9; }
+        .input-display span.passed { color: var(--ink); }
+
+        .stack-view { display: flex; flex-direction: column-reverse; gap: 5px; width: 64px; border-bottom: 3px solid rgba(51,65,85,0.2); padding-bottom: 6px; height: 160px; justify-content: flex-start; }
+        .stack-slot {
+            height: 26px; border: 1px dashed rgba(51,65,85,0.2); border-radius: 4px;
+            display: flex; align-items: center; justify-content: center; font-family: 'DM Mono', monospace; font-size: 14px;
+            color: transparent; transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); transform: translateY(-8px); opacity: 0;
+        }
+        .stack-slot.visible { transform: translateY(0); opacity: 1; }
+        .stack-slot.filled { background: rgba(255,255,255,0.8); border-style: solid; border-color: rgba(255,255,255,1); color: var(--ink); box-shadow: 0 2px 10px rgba(51,65,85,0.05); }
+        .stack-slot.top { border-color: #0ea5e9; color: #0ea5e9; background: rgba(14,165,233,0.1); }
+        .stack-slot.btm { color: var(--muted); }
+        
+        .status-msg { font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 2px; opacity: 0; transform: translateY(-5px); transition: all 0.3s; }
+        .status-msg.show { opacity: 1; transform: translateY(0); }
+        .status-msg.accept { color: #4e7a27; }
+        .status-msg.reject { color: #a13d3d; }
+
+        @media (max-width: 768px) {
+            #webgl-container { display: none; }
+            .hero-content { z-index: 10; margin-top: 10vh; height: auto; }
+            .hero { height: auto; padding-bottom: 5vh; }
+            .headline { font-size: 48px; } .headline em { font-size: 64px; }
+            .split-view { flex-direction: column; }
+            .split-divider { width: 100%; height: 1px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="webgl-container"></div>
+
+    <div class="hero">
+        <div class="hero-content">
+            <div class="eyebrow" id="seq-1">Pushdown Automata &middot; Visual Simulator</div>
+            <h1 class="headline">
+                <span class="word">See</span> <span class="word">how</span><br>
+                <em><span class="word">stack</span> <span class="word">memory</span></em><br>
+                <span class="word">flows.</span>
+            </h1>
+            <p class="sub-copy" id="seq-3">Step effortlessly through deterministic computation spaces. Calm your mind, trace the logic, and understand context-free boundaries naturally.</p>
+            <div class="cta-group" id="seq-4">
+                <a href="index.html" class="btn btn-primary">Launch Simulator &rarr;</a>
+                <a href="#features" class="btn btn-primary" style="background:transparent; border:1px solid rgba(51,65,85,0.2);">Browse Logic &darr;</a>
+            </div>
+        </div>
+    </div>
+
+    <section id="features" class="features">
+        <div class="feature-block" id="theory-1">
+            <div class="feature-text">
+                <h3>What is a Pushdown Automaton?</h3>
+                <p>A <strong>pushdown automaton (PDA)</strong> is a formal computation model—imagine a standard finite state machine, but augmented with an infinite <em>stack</em> memory. This leap in architecture allows it to recognize **Context-Free Languages**, granting it the ability to count, mirror, and match nested structures, something no DFA or NFA can ever achieve.</p>
+            </div>
+        </div>
+        
+        <div class="feature-block" id="theory-2">
+            <div class="feature-text">
+                <h3>Context-Free Boundaries</h3>
+                <p>Why do we need a stack? Consider the language <code>aⁿbⁿ</code>. To ensure an equal number of A's and B's, a finite automaton would need infinite states. A PDA simply pushes a marker for every 'a', and pops a marker for every 'b'. If the stack runs empty precisely as the input ceases, the string is accepted. It learns to balance.</p>
+            </div>
+        </div>
+
+        <div class="feature-block" id="theory-3">
+            <div class="feature-text">
+                <h3>Limits of the Machine</h3>
+                <p>While a single stack grants immense power, it is strictly bound. A PDA cannot parse <code>aⁿbⁿcⁿ</code>. A single Last-In-First-Out (LIFO) stack cannot simultaneously track two independent counts. To compute that, you must ascend to a Turing Machine. Here, you visualize exactly where that boundary lies.</p>
+            </div>
+        </div>
+    </section>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if(!reduced) {
+                setTimeout(() => document.getElementById('seq-1').classList.add('visible'), 500);
+                setTimeout(() => document.querySelectorAll('.word').forEach((w, i) => setTimeout(() => w.classList.add('visible'), i * 80)), 900);
+                setTimeout(() => document.getElementById('seq-3').classList.add('visible'), 1600);
+                setTimeout(() => document.getElementById('seq-4').classList.add('visible'), 2100);
+            } else {
+                document.getElementById('seq-1').classList.add('visible');
+                document.querySelectorAll('.word').forEach(w => w.classList.add('visible'));
+                document.getElementById('seq-3').classList.add('visible');
+                document.getElementById('seq-4').classList.add('visible');
+            }
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if(entry.isIntersecting) { entry.target.classList.add('visible'); observer.unobserve(entry.target); }
+                });
+            }, { threshold: 0.2 });
+            document.querySelectorAll('.feature-block').forEach(el => observer.observe(el));
+
+            initWebGL();
+        });
+
+        // Removed interactive modules logic as requested
+
+        // ------------------------------
+        // ZEN PEARL WEBGL
+        // ------------------------------
+        let scene, camera, renderer;
+        let shapesGroup, clock = new THREE.Clock();
+        let targetMouse = { x: 0, y: 0 }, currentMouse = { x: 0, y: 0 };
+        let scrollVal = 0;
+
+        function initWebGL() {
+            if(window.matchMedia('(prefers-reduced-motion: reduce)').matches || window.innerWidth < 768) return;
+            const container = document.getElementById('webgl-container');
+            
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 150);
+            camera.position.set(0, 0, 15);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setClearColor(0x000000, 0); // DOM shows through
+            container.appendChild(renderer.domElement);
+
+            shapesGroup = new THREE.Group();
+            scene.add(shapesGroup);
+
+            // Pearl / Opal material
+            const pearlMat = new THREE.MeshPhysicalMaterial({
+                color: 0xffffff,
+                metalness: 0.1,
+                roughness: 0.1,
+                clearcoat: 1.0,
+                clearcoatRoughness: 0.2,
+                transmission: 0.7,
+                thickness: 1.5,
+                transparent: true,
+                opacity:0.9
+            });
+
+            // Gentle geometries
+            const geometries = [
+                new THREE.SphereGeometry(1.5, 64, 64),
+                new THREE.TorusKnotGeometry(1.2, 0.4, 128, 64),
+                new THREE.IcosahedronGeometry(1.6, 1)
+            ];
+
+            geometries.forEach((geom, i) => {
+                const mesh = new THREE.Mesh(geom, pearlMat);
+                mesh.position.set((Math.random()-0.5)*5, (Math.random()-0.5)*5, (Math.random()-0.5)*2);
+                mesh.userData = {
+                    rx: Math.random()*0.005, ry: Math.random()*0.005,
+                    px: Math.random()*Math.PI*2, py: Math.random()*Math.PI*2
+                };
+                shapesGroup.add(mesh);
+            });
+
+            // Ambient Pastel Lights moving around
+            const p1 = new THREE.PointLight(0xffecd2, 2, 20); // peach
+            const p2 = new THREE.PointLight(0xa1c4fd, 2, 20); // cool blue
+            const p3 = new THREE.PointLight(0xe0c3fc, 2, 20); // lavender
+            scene.add(p1); scene.add(p2); scene.add(p3);
+            scene.userData.lights = [p1, p2, p3];
+
+            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+            window.addEventListener('scroll', () => { scrollVal = window.scrollY / window.innerHeight; document.querySelector('.hero-content').style.opacity = Math.max(0, 1 - scrollVal * 1.5); });
+            window.addEventListener('mousemove', (e) => {
+                targetMouse.x = (e.clientX / window.innerWidth)*2-1; targetMouse.y = -(e.clientY / window.innerHeight)*2+1;
+            });
+
+            // Intro fade
+            shapesGroup.position.y = -2; shapesGroup.scale.setScalar(0.9);
+
+            renderer.setAnimationLoop(render);
+        }
+
+        function render() {
+            const time = clock.getElapsedTime();
+            const lerp = (s,e,a) => (1-a)*s + a*e;
+
+            currentMouse.x = lerp(currentMouse.x, targetMouse.x, 0.03);
+            currentMouse.y = lerp(currentMouse.y, targetMouse.y, 0.03);
+            
+            shapesGroup.rotation.y = lerp(shapesGroup.rotation.y, time * 0.1 + currentMouse.x * 0.4, 0.05);
+            shapesGroup.rotation.x = lerp(shapesGroup.rotation.x, -currentMouse.y * 0.2, 0.05);
+            
+            shapesGroup.position.y = lerp(shapesGroup.position.y, Math.sin(time*0.5)*0.2 + scrollVal * 3, 0.03);
+            shapesGroup.scale.setScalar(lerp(shapesGroup.scale.x, 1.0, 0.03));
+
+            shapesGroup.children.forEach((mesh, i) => {
+                mesh.rotation.x += mesh.userData.rx; mesh.rotation.y += mesh.userData.ry;
+                mesh.position.y += Math.sin(time + mesh.userData.px) * 0.002;
+                mesh.position.x += Math.cos(time + mesh.userData.py) * 0.002;
+            });
+
+            const lts = scene.userData.lights;
+            if(lts) {
+                lts[0].position.set(Math.sin(time*0.7)*5, Math.cos(time*0.5)*5, 2);
+                lts[1].position.set(Math.cos(time*0.3)*6, Math.sin(time*0.8)*4, 2);
+                lts[2].position.set(Math.sin(time*0.5)*4, Math.cos(time*0.9)*6, -2);
+            }
+
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
