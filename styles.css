@@ -9,7 +9,8 @@
   --cream2: rgba(255, 255, 255, 0.6);
   --cream3: rgba(255, 255, 255, 0.4);
   --cream4: rgba(255, 255, 255, 0.2);
-  --ink: #334155; /* Soft Slate */
+  --ink: #334155;
+  /* Soft Slate */
   --ink2: #475569;
   --ink3: #64748b;
   --muted: rgba(51, 65, 85, 0.65);
@@ -18,14 +19,18 @@
   --rule2: rgba(51, 65, 85, 0.08);
 
   /* Accents */
-  --olive: #0ea5e9; /* Light Ocean Teal */
+  --olive: #0ea5e9;
+  /* Light Ocean Teal */
   --olive-l: #38bdf8;
   --olive-faint: rgba(14, 165, 233, 0.15);
-  --amber: #f43f5e; /* Soft Rose Coral */
+  --amber: #f43f5e;
+  /* Soft Rose Coral */
   --amber-faint: rgba(244, 63, 94, 0.12);
-  --blue: #8b5cf6; /* Lavender */
+  --blue: #8b5cf6;
+  /* Lavender */
   --blue-faint: rgba(139, 92, 246, 0.12);
-  --rose: #ec4899; /* Pink */
+  --rose: #ec4899;
+  /* Pink */
   --rose-faint: rgba(236, 72, 153, 0.12);
 
   /* App dark panel -> Translucent Glass Panel */
@@ -66,16 +71,31 @@ body {
   min-height: 100%;
   font-family: var(--sans);
   color: var(--ink);
-  background: linear-gradient(120deg, #fdfbfb 0%, #ebedee 100%);
-  background-size: 200% 200%;
-  background-attachment: fixed;
-  animation: auroraMesh 15s ease infinite alternate;
+
+  background: linear-gradient(120deg,
+      #ffecd2,
+      #fcb69f,
+      #a1c4fd,
+      #c2e9fb,
+      #e0c3fc,
+      #8ec5fc);
+
+  background-size: 400% 400%;
+  animation: auroraFlow 20s ease infinite;
 }
 
-@keyframes auroraMesh {
-  0% { background: linear-gradient(120deg, #ffecd2 0%, #fcb69f 100%); }
-  50% { background: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%); }
-  100% { background: linear-gradient(120deg, #e0c3fc 0%, #8ec5fc 100%); }
+@keyframes auroraFlow {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 ::selection {
@@ -2589,105 +2609,132 @@ button.star:hover {
 /* ══════════════════════════════════════════════════════
    GLASSMORPHISM & AMBIENT AURORA OVERRIDES
 ══════════════════════════════════════════════════════ */
-.app-shell, .landing {
-    background: transparent !important;
+.app-shell,
+.landing {
+  background: transparent !important;
 }
 
-.panel, .sidebar, .ex-card, .hv-card, .builder-grid, .builder-table-wrap, .theory-card {
-    background: rgba(255, 255, 255, 0.45) !important;
-    backdrop-filter: blur(28px) !important;
-    -webkit-backdrop-filter: blur(28px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.5) !important;
-    box-shadow: 0 4px 30px rgba(51, 65, 85, 0.1) !important;
-    border-radius: var(--r3) !important;
+.panel,
+.sidebar,
+.ex-card,
+.hv-card,
+.builder-grid,
+.builder-table-wrap,
+.theory-card {
+  background: rgba(255, 255, 255, 0.45) !important;
+  backdrop-filter: blur(28px) !important;
+  -webkit-backdrop-filter: blur(28px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 0 4px 30px rgba(51, 65, 85, 0.1) !important;
+  border-radius: var(--r3) !important;
 }
 
-.tape-panel, .stack-panel, .diagram-panel, .log-panel {
-    background: rgba(255, 255, 255, 0.6) !important;
-    border-radius: var(--r2) !important;
-    overflow: hidden;
+.tape-panel,
+.stack-panel,
+.diagram-panel,
+.log-panel {
+  background: rgba(255, 255, 255, 0.6) !important;
+  border-radius: var(--r2) !important;
+  overflow: hidden;
 }
 
-.sb-input, .sb-select, .finput, .modal-textarea {
-    background: rgba(255, 255, 255, 0.6) !important;
-    border: 1px solid rgba(255, 255, 255, 0.7) !important;
-    border-radius: var(--r) !important;
+.sb-input,
+.sb-select,
+.finput,
+.modal-textarea {
+  background: rgba(255, 255, 255, 0.6) !important;
+  border: 1px solid rgba(255, 255, 255, 0.7) !important;
+  border-radius: var(--r) !important;
 }
 
-.app-nav, .site-nav {
-    background: rgba(255, 255, 255, 0.45) !important;
-    backdrop-filter: blur(24px) !important;
-    -webkit-backdrop-filter: blur(24px) !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.4) !important;
+.app-nav,
+.site-nav {
+  background: rgba(255, 255, 255, 0.45) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.4) !important;
 }
 
 .site-nav {
-    box-shadow: 0 4px 30px rgba(51, 65, 85, 0.05);
+  box-shadow: 0 4px 30px rgba(51, 65, 85, 0.05);
 }
 
-.hv-tape-row, .hv-state-box, .hv-side-label {
-    background: rgba(255, 255, 255, 0.3) !important;
-    border: 1px solid rgba(255, 255, 255, 0.5) !important;
-    color: var(--ink) !important;
+.hv-tape-row,
+.hv-state-box,
+.hv-side-label {
+  background: rgba(255, 255, 255, 0.3) !important;
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  color: var(--ink) !important;
 }
 
-.hv-cell, .hv-transition-box strong, .hv-sitem {
-    color: var(--ink) !important;
-    border-color: rgba(255,255,255,0.6) !important;
+.hv-cell,
+.hv-transition-box strong,
+.hv-sitem {
+  color: var(--ink) !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
 }
 
-.btn-primary, .nav-cta, .mbtn-primary {
-    background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%) !important;
-    color: #1e293b !important;
-    border: 1px solid rgba(255,255,255,0.7) !important;
-    box-shadow: 0 4px 15px rgba(161, 196, 253, 0.4) !important;
-    transition: all 0.3s ease !important;
-}
-.btn-primary:hover, .nav-cta:hover {
-    box-shadow: 0 8px 25px rgba(161, 196, 253, 0.6) !important;
-    transform: translateY(-2px) !important;
+.btn-primary,
+.nav-cta,
+.mbtn-primary {
+  background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%) !important;
+  color: #1e293b !important;
+  border: 1px solid rgba(255, 255, 255, 0.7) !important;
+  box-shadow: 0 4px 15px rgba(161, 196, 253, 0.4) !important;
+  transition: all 0.3s ease !important;
 }
 
-.htag, .ex-badge, .accept-badge {
-    background: rgba(255,255,255,0.7) !important;
-    backdrop-filter: blur(10px) !important;
+.btn-primary:hover,
+.nav-cta:hover {
+  box-shadow: 0 8px 25px rgba(161, 196, 253, 0.6) !important;
+  transform: translateY(-2px) !important;
+}
+
+.htag,
+.ex-badge,
+.accept-badge {
+  background: rgba(255, 255, 255, 0.7) !important;
+  backdrop-filter: blur(10px) !important;
 }
 
 /* ══════════════════════════════════════════════════════
    GLASSMORPHISM LAYOUT REVISIONS (Gaps & Dimensions)
 ══════════════════════════════════════════════════════ */
 .app-body {
-    padding: 16px !important;
-    gap: 16px !important;
-    height: calc(100vh - 56px) !important; /* Adjust if nav height differs */
+  padding: 16px !important;
+  gap: 16px !important;
+  height: calc(100vh - 56px) !important;
+  /* Adjust if nav height differs */
 }
 
 .sidebar {
-    border: 1px solid rgba(255, 255, 255, 0.5) !important;
-    border-radius: var(--r3) !important;
-    height: 100% !important;
-    background: rgba(255, 255, 255, 0.45) !important;
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  border-radius: var(--r3) !important;
+  height: 100% !important;
+  background: rgba(255, 255, 255, 0.45) !important;
 }
 
 .panels {
-    gap: 16px !important;
-    background: transparent !important;
+  gap: 16px !important;
+  background: transparent !important;
 }
 
 .panels-row {
-    gap: 16px !important;
+  gap: 16px !important;
 }
 
 .panel {
-    border-radius: var(--r3) !important;
-    border: 1px solid rgba(255, 255, 255, 0.5) !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.5) !important;
-    border-left: 1px solid rgba(255, 255, 255, 0.5) !important;
+  border-radius: var(--r3) !important;
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.5) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.5) !important;
 }
 
-.panel + .panel {
-    border-left: 1px solid rgba(255, 255, 255, 0.5) !important;
+.panel+.panel {
+  border-left: 1px solid rgba(255, 255, 255, 0.5) !important;
 }
 
 /* Fix inner padding for glass cards */
-.sb-block { border-bottom: 1px solid rgba(51, 65, 85, 0.1) !important; }
+.sb-block {
+  border-bottom: 1px solid rgba(51, 65, 85, 0.1) !important;
+}
