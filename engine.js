@@ -326,12 +326,6 @@ export function runProblem(problemId, input) {
   throw new Error(`Unknown problemId: ${problemId}`);
 }
 
-function toPushList(push) {
-  if (push === null || push === undefined) return [];
-  if (Array.isArray(push)) return push.map(String);
-  return [String(push)];
-}
-
 function normalizeRead(read) {
   if (read === undefined) return null;
   if (read === null) return null;
@@ -362,8 +356,14 @@ function matchesRead(read, input, idx) {
   return { ok: false };
 }
 
+function toPushList(push) {
+  if (push === null || push === undefined || push === "ε" || push === "") return [];
+  if (Array.isArray(push)) return push.map(String);
+  return [String(push)];
+}
+
 function matchesStack(pop, stack) {
-  if (pop === null || pop === undefined || pop === "") return { ok: true, doPop: false, popped: null };
+  if (pop === null || pop === undefined || pop === "" || pop === "ε") return { ok: true, doPop: false, popped: null };
   const p = String(pop);
   if (p === "*") {
     if (stack.length === 0) return { ok: false };
@@ -376,160 +376,142 @@ function matchesStack(pop, stack) {
 
 export function runCustomDpda(def, rawInput) {
   const input = normalizeInput(rawInput);
-
   const start = def?.start ?? "q0";
   const accept = Array.isArray(def?.accept) ? def.accept.map(String) : ["qa"];
   const reject = Array.isArray(def?.reject) ? def.reject.map(String) : ["qr"];
   const transitions = Array.isArray(def?.transitions) ? def.transitions : [];
   const maxSteps = Number(def?.limits?.maxSteps ?? 5000);
 
-  let state = String(start);
-  let idx = 0;
-  let stack = Array.isArray(def?.stack?.initial) ? def.stack.initial.map(String) : [];
-  const steps = [];
-  let stepIndex = 0;
+  let bestPath = [];
+  let accepted = false;
+  const depthLimit = Math.min(maxSteps, 2000);
 
-  // stable first frame
-  steps.push(
-    makeStep({
-      stepIndex: stepIndex++,
-      state,
-      inputIndex: idx,
-      headIndex: null,
-      read: null,
-      action: { type: "noop" },
-      stack,
-      note: "Initialize custom DPDA",
-      edgeId: null,
-    }),
-  );
+  // DFS Backtracking allows Non-Deterministic evaluation (NPDA)
+  function dfs(currentState, currentIdx, currentStack, currentSteps) {
+    if (accepted) return;
+    if (currentSteps.length >= depthLimit) {
+      if (bestPath.length === 0) bestPath = [...currentSteps];
+      return;
+    }
 
-  const pushSymbols = (symbols) => {
-    for (const sym of symbols) stack.push(sym);
-  };
+    const isEof = currentIdx === input.length;
 
-  const rejectNow = (note) => {
-    state = reject[0] ?? "qr";
-    steps.push(
-      makeStep({
-        stepIndex: stepIndex++,
-        state,
-        inputIndex: idx,
-        headIndex: idx < input.length ? idx : null,
-        read: idx < input.length ? input[idx] : null,
-        action: { type: "noop" },
-        stack,
-        note,
-        edgeId: null,
-        status: "reject",
-      }),
-    );
-  };
+    // Accept condition
+    if (isEof && accept.includes(currentState)) {
+      accepted = true;
+      bestPath = [...currentSteps];
+      bestPath.push(
+        makeStep({
+          stepIndex: currentSteps.length,
+          state: currentState,
+          inputIndex: currentIdx,
+          headIndex: null,
+          read: null,
+          action: { type: "noop" },
+          stack: currentStack,
+          note: "Accepting configuration reached",
+          edgeId: null,
+          status: "accept",
+        })
+      );
+      return;
+    }
 
-  const acceptNow = (note) => {
-    state = accept[0] ?? "qa";
-    steps.push(
-      makeStep({
-        stepIndex: stepIndex++,
-        state,
-        inputIndex: idx,
-        headIndex: null,
-        read: null,
-        action: { type: "noop" },
-        stack,
-        note,
-        edgeId: null,
-        status: "accept",
-      }),
-    );
-  };
-
-  for (let guardSteps = 0; guardSteps < maxSteps; guardSteps += 1) {
-    if (steps[steps.length - 1]?.status === "reject") return { steps, accepted: false };
-    if (steps[steps.length - 1]?.status === "accept") return { steps, accepted: true };
-
-    // stop if we are in accept/reject states AND no more input; still allow explicit EOF transitions.
-    const possible = transitions.filter((t) => String(t.from) === state);
-    if (possible.length === 0) break;
-
-    let chosen = null;
-    let chosenRead = null;
-    let chosenConsume = 0;
-    let chosenPopped = null;
+    const possible = transitions.filter((t) => String(t.from) === currentState);
+    let moved = false;
 
     for (const t of possible) {
-      const readMatch = matchesRead(t.read, input, idx);
+      if (accepted) return;
+
+      const readMatch = matchesRead(t.read, input, currentIdx);
       if (!readMatch.ok) continue;
+      if (!matchesGuard(t.guard, currentStack)) continue;
 
-      if (!matchesGuard(t.guard, stack)) continue;
-
-      const stackMatch = matchesStack(t.pop, stack);
+      const stackMatch = matchesStack(t.pop, currentStack);
       if (!stackMatch.ok) continue;
 
-      chosen = t;
-      chosenRead = readMatch.value;
-      chosenConsume = readMatch.consumed;
-      chosenPopped = stackMatch.popped;
-      break; // deterministic: first match wins
-    }
+      moved = true;
+      const nextStack = [...currentStack];
+      let action = { type: "noop" };
 
-    if (!chosen) break;
-
-    const fromState = state;
-    const headIndex = chosenConsume === 1 ? idx : null;
-
-    // apply stack pop
-    let action = { type: "noop" };
-    if (chosenPopped !== null) {
-      stack.pop();
-      action = { type: "pop", symbol: chosenPopped };
-    }
-
-    // apply stack push (after pop)
-    const pushList = toPushList(chosen.push);
-    if (pushList.length) {
-      pushSymbols(pushList);
-      if (action.type === "pop") {
-        action = { type: "pop_push", pop: action.symbol, push: pushList.slice() };
-      } else {
-        action = pushList.length === 1 ? { type: "push", symbol: pushList[0] } : { type: "pushMany", symbols: pushList.slice() };
+      if (stackMatch.popped !== null) {
+        nextStack.pop();
+        action = { type: "pop", symbol: stackMatch.popped };
       }
+
+      const pushList = toPushList(t.push);
+      if (pushList.length) {
+        for (const sym of pushList) nextStack.push(sym);
+        if (action.type === "pop") {
+          action = { type: "pop_push", pop: action.symbol, push: pushList.slice() };
+        } else {
+          action = pushList.length === 1 ? { type: "push", symbol: pushList[0] } : { type: "pushMany", symbols: pushList.slice() };
+        }
+      }
+
+      const nextIdx = currentIdx + readMatch.consumed;
+      const nextState = String(t.to);
+
+      currentSteps.push(
+        makeStep({
+          stepIndex: currentSteps.length,
+          state: nextState,
+          inputIndex: nextIdx,
+          headIndex: readMatch.consumed === 1 ? currentIdx : null,
+          read: readMatch.value,
+          action: action, // Store actual complex action types
+          stack: nextStack,
+          note: t.label ?? `${currentState} → ${nextState}`,
+          edgeId: t.id ?? null,
+        })
+      );
+
+      dfs(nextState, nextIdx, nextStack, currentSteps);
+      currentSteps.pop(); // Backtrack
     }
 
-    // advance input and state
-    idx += chosenConsume;
-    state = String(chosen.to);
-
-    steps.push(
-      makeStep({
-        stepIndex: stepIndex++,
-        state,
-        inputIndex: idx,
-        headIndex,
-        read: chosenRead,
-        action:
-          action.type === "pop_push" || action.type === "pushMany"
-            ? { type: "noop" } // keep UI simple; stack diff animation will still show changes
-            : action,
-        stack,
-        note: chosen.label ?? `${fromState} → ${state}`,
-        edgeId: chosen.id ?? null,
-      }),
-    );
+    // Dead end recording
+    if (!moved && !accepted && bestPath.length === 0) {
+      bestPath = [...currentSteps];
+      bestPath.push(
+        makeStep({
+          stepIndex: currentSteps.length,
+          state: reject[0] ?? "qr",
+          inputIndex: currentIdx,
+          headIndex: currentIdx < input.length ? currentIdx : null,
+          read: currentIdx < input.length ? input[currentIdx] : null,
+          action: { type: "noop" },
+          stack: currentStack,
+          note: "No valid transition (or not in accept at EOF)",
+          edgeId: null,
+          status: "reject",
+        })
+      );
+    }
   }
 
-  if (stepIndex >= maxSteps) {
-    rejectNow(`Step limit exceeded (${maxSteps}). Possible ε-loop.`);
-    return { steps, accepted: false };
+  const initialStack = Array.isArray(def?.stack?.initial) ? def.stack.initial.map(String) : [];
+  const initialStep = makeStep({
+    stepIndex: 0,
+    state: String(start),
+    inputIndex: 0,
+    headIndex: null,
+    read: null,
+    action: { type: "noop" },
+    stack: initialStack,
+    note: "Initialize custom DPDA",
+    edgeId: null,
+  });
+
+  dfs(String(start), 0, initialStack, [initialStep]);
+
+  if (!accepted && bestPath.length > 0 && bestPath[bestPath.length - 1].status !== "reject") {
+    bestPath[bestPath.length - 1].status = "reject";
+    bestPath[bestPath.length - 1].note = "Step limit exceeded. Possible ε-loop.";
   }
 
-  const isAccepted = accept.includes(state) && idx === input.length;
-  if (isAccepted) {
-    acceptNow("Accepting configuration reached");
-    return { steps, accepted: true };
-  }
+  // Final index alignment
+  bestPath.forEach((s, i) => (s.stepIndex = i));
 
-  rejectNow("No valid transition (or not in accept at EOF)");
-  return { steps, accepted: false };
+  return { steps: bestPath, accepted };
 }
-

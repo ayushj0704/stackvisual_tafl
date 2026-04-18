@@ -1,6 +1,8 @@
 import { getDefaultCustomDpdaText, getProblemDefinition } from "./definitions.js";
 import { runCustomDpda, runProblem } from "./engine.js";
 
+import { recogniseLanguage, LANGUAGE_LIBRARY } from "./languagebuilder.js";
+
 const els = {
   problemSelect: document.getElementById("problemSelect"),
   inputString: document.getElementById("inputString"),
@@ -29,8 +31,8 @@ const els = {
   customAccept: document.getElementById("customAccept"),
   customReject: document.getElementById("customReject"),
   customStackInitial: document.getElementById("customStackInitial"),
-  addTransitionBtn: document.getElementById("addTransitionBtn"),
-  transitionsBody: document.getElementById("transitionsBody"),
+  // New textarea-based transition input (replaces table builder)
+  customTransitionsText: document.getElementById("customTransitionsText"),
   customError: document.getElementById("customError"),
   theoryBtn: document.getElementById("theoryNavBtn"),
   theoryBackdrop: document.getElementById("theoryBackdrop"),
@@ -68,7 +70,6 @@ function showToast(message) {
 }
 
 function normalizeForProblem(problemId, raw) {
-  // Keep UI + engine indices aligned by removing whitespace before running.
   if (problemId === "custom") return String(raw ?? "").replace(/\s+/g, "");
   const lower = String(raw ?? "").toLowerCase();
   if (problemId === "paren") return lower.replace(/\s+/g, "");
@@ -95,9 +96,10 @@ function formatAction(action) {
   if (!action || action.type === "noop") return "—";
   if (action.type === "push") return `push ${action.symbol}`;
   if (action.type === "pop") return `pop ${action.symbol}`;
+  if (action.type === "pop_push") return `pop ${action.pop}, push ${action.push.join(',')}`;
+  if (action.type === "pushMany") return `push ${action.symbols.join(',')}`;
   return action.type;
 }
-
 function setStatus(step) {
   const status = step?.status ?? "running";
   els.statusPill.classList.remove("pill-running", "pill-accept", "pill-reject");
@@ -143,7 +145,7 @@ function buildTape(input, headIndex, justReadIndex) {
 
 function fullRenderStack(stackSnapshot) {
   const frag = document.createDocumentFragment();
-  const reversed = stackSnapshot.slice().reverse(); // top at top
+  const reversed = stackSnapshot.slice().reverse();
   for (let i = 0; i < reversed.length; i += 1) {
     const symbol = reversed[i];
     const item = document.createElement("div");
@@ -229,7 +231,7 @@ function toggleBookmark(stepIndex) {
   if (bookmarks.has(idx)) bookmarks.delete(idx);
   else bookmarks.add(idx);
   syncBookmarkUi();
-  renderLog(); // simplest: re-render stars
+  renderLog();
 }
 
 function syncBookmarkUi() {
@@ -385,7 +387,6 @@ function initCytoscape(problem) {
         animationDuration: 260,
       },
     style: [
-      // ── Base node ──────────────────────────────────────────────────────
       {
         selector: "node",
         style: {
@@ -410,7 +411,6 @@ function initCytoscape(problem) {
           padding: 8,
         },
       },
-      // ── Accept node ────────────────────────────────────────────────────
       {
         selector: "node#qa, node.accept",
         style: {
@@ -420,7 +420,6 @@ function initCytoscape(problem) {
           color: "#3f621d",
         },
       },
-      // ── Reject node ────────────────────────────────────────────────────
       {
         selector: "node#qr, node.reject",
         style: {
@@ -430,7 +429,6 @@ function initCytoscape(problem) {
           color: "#9f1239",
         },
       },
-      // ── Start node ─────────────────────────────────────────────────────
       {
         selector: "node.start",
         style: {
@@ -440,7 +438,6 @@ function initCytoscape(problem) {
           color: "#0369a1",
         },
       },
-      // ── Active source (outgoing from) ──────────────────────────────────
       {
         selector: ".active-source",
         style: {
@@ -450,7 +447,6 @@ function initCytoscape(problem) {
           color: "#1e3a8a",
         },
       },
-      // ── Active target (arriving at) ────────────────────────────────────
       {
         selector: ".active-target",
         style: {
@@ -460,7 +456,6 @@ function initCytoscape(problem) {
           color: "#0c4a6e",
         },
       },
-      // ── Currently active state ─────────────────────────────────────────
       {
         selector: "node.active-current",
         style: {
@@ -471,7 +466,6 @@ function initCytoscape(problem) {
           "box-shadow": "0 0 0 4px rgba(161, 196, 253, 0.3)",
         },
       },
-      // ── Base edge ──────────────────────────────────────────────────────
       {
         selector: "edge",
         style: {
@@ -498,7 +492,6 @@ function initCytoscape(problem) {
           "transition-duration": "180ms",
         },
       },
-      // ── Loop / self-edge ───────────────────────────────────────────────
       {
         selector: "edge.loop, edge[source = target]",
         style: {
@@ -508,7 +501,6 @@ function initCytoscape(problem) {
           "text-margin-x": 0,
         },
       },
-      // ── Fallback / else edge ───────────────────────────────────────────
       {
         selector: "edge.fallback",
         style: {
@@ -520,7 +512,6 @@ function initCytoscape(problem) {
           width: 1.5,
         },
       },
-      // ── Active (firing) edge ───────────────────────────────────────────
       {
         selector: "edge.active-edge",
         style: {
@@ -543,7 +534,6 @@ function initCytoscape(problem) {
 }
 
 function getCustomTemplateText() {
-  // local import is the source of truth; avoids relying on optional fields.
   return getDefaultCustomDpdaText();
 }
 
@@ -640,74 +630,6 @@ function normalizeCustomDef(def) {
   return d;
 }
 
-function addTransitionRow(t = {}) {
-  const tr = document.createElement("tr");
-  tr.dataset.id = String(t.id ?? "");
-
-  const mkInput = (value, placeholder = "") => {
-    const input = document.createElement("input");
-    input.className = "mini-input";
-    input.type = "text";
-    input.autocomplete = "off";
-    input.value = value ?? "";
-    if (placeholder) input.placeholder = placeholder;
-    return input;
-  };
-
-  const mkSelect = (value) => {
-    const select = document.createElement("select");
-    select.className = "mini-input mini-select";
-    const opts = [
-      { v: "any", t: "Any" },
-      { v: "empty", t: "Stack empty" },
-      { v: "nonempty", t: "Stack non-empty" },
-    ];
-    for (const o of opts) {
-      const opt = document.createElement("option");
-      opt.value = o.v;
-      opt.textContent = o.t;
-      select.appendChild(opt);
-    }
-    select.value = value ?? "any";
-    return select;
-  };
-
-  const from = mkInput(t.from ?? "", "q0");
-  const read = mkInput(t.read === null || t.read === undefined ? "ε" : t.read, "ε / a / EOF");
-  const pop = mkInput(t.pop === null || t.pop === undefined ? "ε" : t.pop, "ε / A / *");
-  const push = mkInput(
-    Array.isArray(t.push) ? t.push.join(",") : t.push === null || t.push === undefined ? "ε" : t.push,
-    "ε / A / A,B",
-  );
-  const to = mkInput(t.to ?? "", "q1");
-  const guardSel = mkSelect(t.guard?.stackEmpty === true ? "empty" : t.guard?.stackEmpty === false ? "nonempty" : "any");
-  const label = mkInput(t.label ?? "", "optional");
-
-  const delBtn = document.createElement("button");
-  delBtn.type = "button";
-  delBtn.className = "btn mini-btn";
-  delBtn.textContent = "✕";
-  delBtn.title = "Delete";
-  delBtn.addEventListener("click", () => tr.remove());
-
-  const td = (...children) => {
-    const cell = document.createElement("td");
-    for (const c of children) cell.appendChild(c);
-    return cell;
-  };
-
-  tr.appendChild(td(from));
-  tr.appendChild(td(read));
-  tr.appendChild(td(pop));
-  tr.appendChild(td(push));
-  tr.appendChild(td(to));
-  tr.appendChild(td(guardSel));
-  tr.appendChild(td(label));
-  tr.appendChild(td(delBtn));
-
-  els.transitionsBody.appendChild(tr);
-}
-
 function renderCustomBuilder(def) {
   clearCustomError();
   const safe = def ?? {};
@@ -718,12 +640,20 @@ function renderCustomBuilder(def) {
   els.customReject.value = toCsv(safe.reject ?? ["qr"]);
   els.customStackInitial.value = toCsv(safe.stack?.initial ?? []);
 
-  els.transitionsBody.replaceChildren();
-  const transitions = Array.isArray(safe.transitions) ? safe.transitions : [];
-  if (!transitions.length) addTransitionRow({ from: "q0", to: "q0", read: "ε", pop: "ε", push: "ε", label: "" });
-  else for (const t of transitions) addTransitionRow(t);
+  // Render transitions as readable text lines in the textarea
+  if (els.customTransitionsText) {
+    const transitions = Array.isArray(safe.transitions) ? safe.transitions : [];
+    els.customTransitionsText.value = transitions.map(t => {
+      const read = t.read ?? "ε";
+      const pop = t.pop ?? "ε";
+      const push = Array.isArray(t.push)
+        ? t.push.join(",")
+        : (t.push ?? "ε");
+      return `${t.from}, ${read}, ${pop} -> ${t.to}, ${push}`;
+    }).join("\n");
+  }
 
-  els.pdaJson.value = JSON.stringify(safe, null, 2);
+  if (els.pdaJson) els.pdaJson.value = JSON.stringify(safe, null, 2);
 }
 
 function openModal() {
@@ -744,71 +674,74 @@ function closeTheory() {
   els.theoryBackdrop.classList.add("hidden");
 }
 
-function buildCustomDefFromBuilder() {
-  const name = String(els.customName.value ?? "").trim() || "Custom DPDA";
-  const states = parseCsv(els.customStates.value);
-  const start = String(els.customStart.value ?? "").trim() || "q0";
-  const accept = parseCsv(els.customAccept.value);
-  const reject = parseCsv(els.customReject.value);
-  const stackInitial = parseCsv(els.customStackInitial.value);
+/**
+ * Parse textarea lines of the form:
+ *   from, read, pop -> to, push
+ *   q0, a, ε -> q0, A
+ */
+function parseTransitionLine(line, index) {
+  const clean = line.replace(/#.*$/, "").trim();
+  if (!clean) return null;
 
-  const rows = Array.from(els.transitionsBody.querySelectorAll("tr"));
+  const parts = clean.split("->").map(s => s.trim());
+  if (parts.length !== 2) throw new Error(`Line ${index + 1}: expected "from, read, pop -> to, push"`);
+
+  const left = parts[0].split(",").map(s => s.trim());
+  const right = parts[1].split(",").map(s => s.trim());
+
+  if (left.length < 3) throw new Error(`Line ${index + 1}: left side needs 3 parts: from, read, pop`);
+  if (right.length < 2) throw new Error(`Line ${index + 1}: right side needs 2 parts: to, push`);
+
+  const from = left[0];
+  const to = right[0];
+  if (!from || !to) throw new Error(`Line ${index + 1}: from/to state cannot be empty`);
+
+  const readRaw = normalizeEpsilonToken(left[1]);
+  const popRaw = normalizeEpsilonToken(left[2]);
+  const pushParts = right.slice(1).map(s => normalizeEpsilonToken(s)).filter(Boolean);
+  const pushRaw = pushParts.join(",");
+
+  const read = !readRaw || readRaw === "ε" ? "ε"
+    : readRaw.toUpperCase() === "EOF" ? "EOF"
+      : readRaw;
+
+  const pop = !popRaw || popRaw === "ε" ? null : popRaw;
+  const push = !pushRaw || pushRaw === "ε" ? null : parseMaybeArray(pushRaw);
+
+  return { id: `t_${index}`, from, to, read, pop, push, label: `${from} → ${to}: ${read}` };
+}
+
+function buildCustomDefFromBuilder() {
+  const name = String(els.customName?.value ?? "").trim() || "Custom DPDA";
+  const states = parseCsv(els.customStates?.value);
+  const start = String(els.customStart?.value ?? "").trim() || "q0";
+  const accept = parseCsv(els.customAccept?.value);
+  const reject = parseCsv(els.customReject?.value);
+  const stackInitial = parseCsv(els.customStackInitial?.value);
+
   const transitions = [];
   const usedIds = new Set();
 
-  for (let i = 0; i < rows.length; i += 1) {
-    const tr = rows[i];
-    const inputs = Array.from(tr.querySelectorAll("input,select"));
-    const [fromEl, readEl, popEl, pushEl, toEl, guardEl, labelEl] = inputs;
-
-    const from = String(fromEl?.value ?? "").trim();
-    const to = String(toEl?.value ?? "").trim();
-
-    const readRaw = normalizeEpsilonToken(readEl?.value ?? "");
-    const popRaw = normalizeEpsilonToken(popEl?.value ?? "");
-    const pushRaw = normalizeEpsilonToken(pushEl?.value ?? "");
-
-    const read =
-      !readRaw || readRaw === "ε"
-        ? "ε"
-        : readRaw.toUpperCase() === "EOF"
-          ? "EOF"
-          : readRaw;
-
-    const pop = !popRaw || popRaw === "ε" ? null : popRaw;
-    const push = !pushRaw || pushRaw === "ε" ? null : parseMaybeArray(pushRaw);
-
-    const guardVal = String(guardEl?.value ?? "any");
-    const guard = guardVal === "empty" ? { stackEmpty: true } : guardVal === "nonempty" ? { stackEmpty: false } : undefined;
-
-    const label = String(labelEl?.value ?? "").trim();
-
-    const baseId = String(tr.dataset.id ?? "").trim() || `t_${i}`;
-    const id = uniqueTransitionId(usedIds, baseId);
-
-    if (!from || !to) continue;
-    transitions.push({
-      id,
-      from,
-      to,
-      read,
-      pop,
-      push,
-      guard,
-      label: label || undefined,
-    });
+  if (els.customTransitionsText) {
+    const lines = els.customTransitionsText.value.split("\n");
+    for (let i = 0; i < lines.length; i++) {
+      const parsed = parseTransitionLine(lines[i], i);
+      if (!parsed) continue;
+      parsed.id = uniqueTransitionId(usedIds, parsed.id);
+      transitions.push(parsed);
+    }
   }
 
-  const allStates = states.length ? states : Array.from(new Set([start, ...transitions.flatMap((t) => [t.from, t.to]), ...accept, ...reject]));
-  const acceptStates = accept.length ? accept : ["qa"];
-  const rejectStates = reject.length ? reject : ["qr"];
+  const allStates = states.length
+    ? states
+    : Array.from(new Set([start, ...transitions.flatMap(t => [t.from, t.to]), ...accept, ...reject]));
 
   return {
     name,
     states: allStates,
     start,
-    accept: acceptStates,
-    reject: rejectStates,
+    accept: accept.length ? accept : ["qa"],
+    reject: reject.length ? reject : ["qr"],
     stack: { initial: stackInitial },
     transitions,
     limits: { maxSteps: 5000 },
@@ -972,7 +905,6 @@ function renderDepthSpark() {
   dot.setAttribute("r", "4.5");
   svg.appendChild(dot);
 
-  // click-to-jump
   svg.onclick = (evt) => {
     const rect = svg.getBoundingClientRect();
     const px = (evt.clientX - rect.left) / rect.width;
@@ -1158,7 +1090,6 @@ function wireEvents() {
   els.playBtn.addEventListener("click", togglePlay);
 
   els.problemSelect.addEventListener("change", () => {
-    // Switching problems should feel deterministic: reset to a valid example.
     const def = getProblemDefinition(els.problemSelect.value);
     els.inputString.value = def.example;
     setExampleForProblem(els.problemSelect.value);
@@ -1221,7 +1152,7 @@ function wireEvents() {
     try {
       let nextDef = null;
       if (useJson) {
-        const raw = String(els.pdaJson.value ?? "").trim();
+        const raw = String(els.pdaJson?.value ?? "").trim();
         nextDef = normalizeCustomDef(JSON.parse(raw));
       } else {
         nextDef = normalizeCustomDef(buildCustomDefFromBuilder());
@@ -1231,10 +1162,10 @@ function wireEvents() {
       customPdaText = JSON.stringify(nextDef, null, 2);
       localStorage.setItem(CUSTOM_STORAGE_KEY, customPdaText);
 
-      // Keep both views in sync.
       renderCustomBuilder(customPdaDef);
       closeModal();
       load();
+      showToast(`Loaded: ${customPdaDef.name || "Custom DPDA"}`);
     } catch (err) {
       showCustomError(`Could not save: ${err?.message ?? err}`);
     }
@@ -1251,10 +1182,6 @@ function wireEvents() {
     }
   });
 
-  els.addTransitionBtn.addEventListener("click", () => {
-    addTransitionRow({ id: "", from: "q0", to: "q0", read: "ε", pop: null, push: null, label: "" });
-  });
-
   els.theoryBtn.addEventListener("click", () => openTheory());
   els.closeTheoryBtn.addEventListener("click", () => closeTheory());
   els.theoryBackdrop.addEventListener("click", (e) => {
@@ -1265,11 +1192,421 @@ function wireEvents() {
     if (e.key !== "Escape") return;
     if (!els.modalBackdrop.classList.contains("hidden")) closeModal();
     if (!els.theoryBackdrop.classList.contains("hidden")) closeTheory();
+    const strGenBd = document.getElementById("strGenBackdrop");
+    if (strGenBd && !strGenBd.classList.contains("hidden")) closeStrGen();
+    const compareBd = document.getElementById("compareBackdrop");
+    if (compareBd && !compareBd.classList.contains("hidden")) closeCompare();
+    const langBd = document.getElementById("langBuilderBackdrop");
+    if (langBd && !langBd.classList.contains("hidden")) langBd.classList.add("hidden");
   });
 }
+
+// ── String Generator ─────────────────────────────────────────────────────────
+
+const strGenBackdrop = document.getElementById("strGenBackdrop");
+const strGenContainer = document.getElementById("strGenContainer");
+const closeStrGenBtn = document.getElementById("closeStrGenBtn");
+const strGenBtn = document.getElementById("strGenBtn");
+
+function openStrGen() {
+  const problemId = els.problemSelect.value;
+  const customDef = problemId === "custom" ? customPdaDef : null;
+  if (typeof renderStringGenerator === "function") {
+    renderStringGenerator(
+      strGenContainer,
+      problemId,
+      customDef,
+      (input) => {
+        closeStrGen();
+        els.inputString.value = input;
+        load();
+      }
+    );
+  }
+  strGenBackdrop.classList.remove("hidden");
+}
+
+function closeStrGen() {
+  strGenBackdrop.classList.add("hidden");
+}
+
+if (strGenBtn) strGenBtn.addEventListener("click", openStrGen);
+if (closeStrGenBtn) closeStrGenBtn.addEventListener("click", closeStrGen);
+if (strGenBackdrop) strGenBackdrop.addEventListener("click", (e) => {
+  if (e.target === strGenBackdrop) closeStrGen();
+});
+
+// ── Comparator ───────────────────────────────────────────────────────────────
+
+const compareBackdrop = document.getElementById("compareBackdrop");
+const compareContainer = document.getElementById("compareContainer");
+const closeCompareBtn = document.getElementById("closeCompareBtn");
+const compareBtn = document.getElementById("compareBtn");
+
+let comparatorApi = null;
+if (compareContainer && typeof initComparator === "function") {
+  comparatorApi = initComparator(
+    compareContainer,
+    () => els.problemSelect.value,
+    () => (els.problemSelect.value === "custom" ? customPdaDef : null),
+    showToast
+  );
+}
+
+function openCompare() {
+  if (compareBackdrop) compareBackdrop.classList.remove("hidden");
+}
+
+function closeCompare() {
+  if (compareBackdrop) compareBackdrop.classList.add("hidden");
+}
+
+if (compareBtn) compareBtn.addEventListener("click", openCompare);
+if (closeCompareBtn) closeCompareBtn.addEventListener("click", closeCompare);
+if (compareBackdrop) compareBackdrop.addEventListener("click", (e) => {
+  if (e.target === compareBackdrop) closeCompare();
+});
+
+els.problemSelect.addEventListener("change", () => {
+  if (comparatorApi) comparatorApi.reset();
+}, true);
 
 setExampleForProblem(els.problemSelect.value);
 wireEvents();
 els.editPdaBtn.hidden = els.problemSelect.value !== "custom";
 renderExamples(getProblemDefinition(els.problemSelect.value));
+
+// ── Language Builder Modal ────────────────────────────────────────────────────
+
+(function initLanguageBuilder() {
+  const backdrop = document.createElement("div");
+  backdrop.id = "langBuilderBackdrop";
+  backdrop.className = "modal-backdrop hidden";
+  backdrop.setAttribute("role", "dialog");
+  backdrop.setAttribute("aria-modal", "true");
+  backdrop.innerHTML = `
+    <div class="modal modal-lb">
+      <div class="modal-hd">
+        <div>
+          <div class="modal-title">Smart Language Builder</div>
+          <div class="modal-title-sub">Type a language — the PDA builds itself</div>
+        </div>
+        <button id="closeLangBuilderBtn" class="mbtn">✕ Close</button>
+      </div>
+      <div class="modal-body lb-body">
+        <div class="lb-search-wrap">
+          <input id="lbInput" class="lb-input" type="text"
+            placeholder="e.g.  wwR  ·  wcwR  ·  anbn  ·  anb2n  ·  a^nb^3n  ·  paren"
+            spellcheck="false" autocomplete="off" />
+          <button id="lbGenerateBtn" class="mbtn mbtn-primary lb-gen-btn">Generate PDA →</button>
+        </div>
+        <div class="lb-library">
+          <div class="lb-lib-label">Or pick a language:</div>
+          <div id="lbLibGrid" class="lb-lib-grid"></div>
+        </div>
+        <div id="lbResult" class="lb-result hidden">
+          <div class="lb-result-header">
+            <div class="lb-result-name" id="lbResultName"></div>
+            <div class="lb-result-badges" id="lbResultBadges"></div>
+          </div>
+          <div class="lb-section-title">Generated Transitions</div>
+          <div class="lb-transitions" id="lbTransitions"></div>
+          <div class="lb-section-title">Quick Test — click any string to run it</div>
+          <div class="lb-examples" id="lbExamples"></div>
+        </div>
+        <div id="lbError" class="builder-error hidden"></div>
+      </div>
+      <div class="modal-ft">
+        <button id="lbLoadBtn" class="mbtn mbtn-primary" disabled>Load into Simulator →</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+
+  // Populate library grid
+  const libGrid = backdrop.querySelector("#lbLibGrid");
+  if (typeof LANGUAGE_LIBRARY !== "undefined") {
+    for (const group of LANGUAGE_LIBRARY) {
+      const groupEl = document.createElement("div");
+      groupEl.className = "lb-lib-group";
+      groupEl.innerHTML = `<div class="lb-lib-group-title">${group.group}</div>`;
+      for (const item of group.items) {
+        const btn = document.createElement("button");
+        btn.className = "lb-lib-item";
+        btn.innerHTML = `<span class="lb-lib-key">${item.label}</span><span class="lb-lib-hint">${item.hint}</span>`;
+        btn.addEventListener("click", () => {
+          backdrop.querySelector("#lbInput").value = item.key;
+          runGenerate(item.key);
+        });
+        groupEl.appendChild(btn);
+      }
+      libGrid.appendChild(groupEl);
+    }
+  }
+
+  let pendingDef = null;
+
+  function runGenerate(raw) {
+    const result = backdrop.querySelector("#lbResult");
+    const errEl = backdrop.querySelector("#lbError");
+    const loadBtn = backdrop.querySelector("#lbLoadBtn");
+
+    errEl.classList.add("hidden");
+    result.classList.add("hidden");
+    loadBtn.disabled = true;
+    pendingDef = null;
+
+    if (typeof recogniseLanguage !== "function") {
+      errEl.textContent = "Language builder not available.";
+      errEl.classList.remove("hidden");
+      return;
+    }
+
+    const res = recogniseLanguage(raw);
+    if (!res.ok) {
+      errEl.textContent = res.error;
+      errEl.classList.remove("hidden");
+      return;
+    }
+
+    pendingDef = res.def;
+
+    backdrop.querySelector("#lbResultName").textContent = res.def.name;
+
+    const badges = backdrop.querySelector("#lbResultBadges");
+    badges.innerHTML = res.alphabet.map(a =>
+      `<span class="lb-badge">Σ: ${a}</span>`
+    ).join("") +
+      `<span class="lb-badge olive">${res.def.states.length} states</span>` +
+      `<span class="lb-badge olive">${res.def.transitions.length} transitions</span>`;
+
+    const trans = backdrop.querySelector("#lbTransitions");
+    trans.innerHTML = res.def.transitions.map(t => {
+      const read = t.read ?? "ε";
+      const pop = t.pop ?? "ε";
+      const push = Array.isArray(t.push) ? t.push.join(",") : (t.push ?? "ε");
+      const guard = t.guard?.stackEmpty === true ? " [stack empty]"
+        : t.guard?.stackEmpty === false ? " [stack non-empty]" : "";
+      return `<div class="lb-trans-row">
+        <code class="lb-state from">${t.from}</code>
+        <span class="lb-arrow">→</span>
+        <code class="lb-state to">${t.to}</code>
+        <span class="lb-trans-detail">read <code>${read}</code> pop <code>${pop}</code> push <code>${push}</code>${guard}</span>
+      </div>`;
+    }).join("");
+
+    const examplesEl = backdrop.querySelector("#lbExamples");
+    examplesEl.innerHTML = "";
+    if (Array.isArray(res.examples)) {
+      for (const ex of res.examples) {
+        const chip = document.createElement("button");
+        let accepted = false;
+        try {
+          const r = runCustomDpda(pendingDef, ex);
+          accepted = r.accepted;
+        } catch { }
+        chip.className = `lb-ex-chip ${accepted ? "accept" : "reject"}`;
+        chip.textContent = ex === "" ? "ε" : ex;
+        chip.title = `${accepted ? "ACCEPT" : "REJECT"} — click to test in simulator`;
+        chip.addEventListener("click", () => {
+          loadDefIntoSimulator(pendingDef, ex);
+          closeLangBuilder();
+        });
+        examplesEl.appendChild(chip);
+      }
+    }
+
+    result.classList.remove("hidden");
+    loadBtn.disabled = false;
+  }
+
+  function loadDefIntoSimulator(d, testInput = "") {
+    if (!d) return;
+
+    customPdaDef = normalizeCustomDef(JSON.parse(JSON.stringify(d)));
+    customPdaText = JSON.stringify(customPdaDef, null, 2);
+    try { localStorage.setItem(CUSTOM_STORAGE_KEY, customPdaText); } catch { }
+
+    const sel = els.problemSelect;
+    if (sel.value !== "custom") {
+      sel.value = "custom";
+      sel.dispatchEvent(new Event("change"));
+    }
+
+    if (testInput !== undefined) {
+      els.inputString.value = testInput;
+    }
+
+    setTimeout(() => {
+      els.loadBtn.click();
+      showToast(`Loaded: ${d.name}`);
+    }, 80);
+  }
+
+  backdrop.querySelector("#closeLangBuilderBtn").addEventListener("click", closeLangBuilder);
+  backdrop.addEventListener("click", e => { if (e.target === backdrop) closeLangBuilder(); });
+
+  backdrop.querySelector("#lbGenerateBtn").addEventListener("click", () => {
+    runGenerate(backdrop.querySelector("#lbInput").value.trim());
+  });
+  backdrop.querySelector("#lbInput").addEventListener("keydown", e => {
+    if (e.key === "Enter") runGenerate(backdrop.querySelector("#lbInput").value.trim());
+  });
+  backdrop.querySelector("#lbLoadBtn").addEventListener("click", () => {
+    if (pendingDef) {
+      loadDefIntoSimulator(pendingDef, "");
+      closeLangBuilder();
+    }
+  });
+
+  function closeLangBuilder() {
+    backdrop.classList.add("hidden");
+  }
+
+  window.__openLangBuilder = function () {
+    backdrop.classList.remove("hidden");
+    backdrop.querySelector("#lbInput").focus();
+  };
+})();
+
+// ── Input dropdown ───────────────────────────────────────────────────────────
+(function initInputDropdown() {
+  const wrap = els.inputString?.parentElement;
+  if (!wrap) return;
+
+  const ddBtn = document.createElement("button");
+  ddBtn.id = "inputDropdownBtn";
+  ddBtn.className = "sb-dd-btn";
+  ddBtn.title = "Recent inputs & quick examples";
+  ddBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+    <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
+
+  const runBtn = wrap.querySelector("#loadBtn");
+  wrap.insertBefore(ddBtn, runBtn);
+
+  const panel = document.createElement("div");
+  panel.id = "inputDropdownPanel";
+  panel.className = "sb-dd-panel hidden";
+  wrap.style.position = "relative";
+  wrap.appendChild(panel);
+
+  const RECENT_KEY = "pda.recent.inputs.v1";
+  const MAX_RECENT = 8;
+
+  function getRecent() {
+    try { return JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]"); } catch { return []; }
+  }
+
+  function saveRecent(input) {
+    if (!input) return;
+    let arr = getRecent().filter(x => x !== input);
+    arr.unshift(input);
+    arr = arr.slice(0, MAX_RECENT);
+    try { localStorage.setItem(RECENT_KEY, JSON.stringify(arr)); } catch { }
+  }
+
+  function buildPanel() {
+    const problemId = els.problemSelect.value;
+    const recent = getRecent();
+    const def = (() => { try { return getProblemDefinition(problemId); } catch { return null; } })();
+    const examples = def?.examples ?? [];
+
+    let html = "";
+
+    if (recent.length) {
+      html += `<div class="sb-dd-group-title">Recent</div>`;
+      for (const r of recent) {
+        html += `<button class="sb-dd-item sb-dd-recent" data-val="${r.replace(/"/g, "&quot;")}">
+          <span class="sb-dd-clock">↺</span>
+          <span class="sb-dd-val">${r || "ε"}</span>
+        </button>`;
+      }
+    }
+
+    if (examples.length) {
+      html += `<div class="sb-dd-group-title">Examples</div>`;
+      for (const ex of examples) {
+        const inp = ex.input ?? "";
+        const lbl = ex.label ?? (inp || "ε");
+        const cls = ex.expected === "accept" ? "sb-dd-accept"
+          : ex.expected === "reject" ? "sb-dd-reject" : "";
+        html += `<button class="sb-dd-item ${cls}" data-val="${inp.replace(/"/g, "&quot;")}">
+          <span class="sb-dd-badge">${ex.expected === "accept" ? "✓" : ex.expected === "reject" ? "✕" : "·"}</span>
+          <span class="sb-dd-val">${lbl}</span>
+        </button>`;
+      }
+    }
+
+    if (!html) html = `<div class="sb-dd-empty">No examples yet</div>`;
+
+    if (recent.length) {
+      html += `<button class="sb-dd-clear" id="sbDdClear">Clear recent</button>`;
+    }
+
+    panel.innerHTML = html;
+
+    panel.querySelectorAll(".sb-dd-item").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const val = btn.dataset.val ?? "";
+        els.inputString.value = val;
+        closePanel();
+        els.loadBtn.click();
+      });
+    });
+
+    const clearBtn = panel.querySelector("#sbDdClear");
+    if (clearBtn) {
+      clearBtn.addEventListener("click", e => {
+        e.stopPropagation();
+        try { localStorage.removeItem(RECENT_KEY); } catch { }
+        buildPanel();
+      });
+    }
+  }
+
+  function openPanel() {
+    buildPanel();
+    panel.classList.remove("hidden");
+  }
+
+  function closePanel() {
+    panel.classList.add("hidden");
+  }
+
+  ddBtn.addEventListener("click", e => {
+    e.stopPropagation();
+    panel.classList.contains("hidden") ? openPanel() : closePanel();
+  });
+
+  document.addEventListener("click", e => {
+    if (!wrap.contains(e.target)) closePanel();
+  });
+
+  els.loadBtn.addEventListener("click", () => {
+    saveRecent(els.inputString.value.trim());
+  }, true);
+
+  els.problemSelect.addEventListener("change", () => closePanel());
+})();
+
+// ── Wire Language Builder button ──────────────────────────────────────────────
+; (function wireLangBuilderBtn() {
+  let btn = document.getElementById("langBuilderBtn");
+  if (!btn) {
+    const block = document.getElementById("editPdaBlock");
+    if (block) {
+      btn = document.createElement("button");
+      btn.id = "langBuilderBtn";
+      btn.className = "sb-customize sb-lang-btn";
+      btn.type = "button";
+      btn.textContent = "✦ Smart Language Builder";
+      block.appendChild(btn);
+    }
+  }
+  if (btn) {
+    btn.addEventListener("click", () => window.__openLangBuilder?.());
+  }
+})();
+
 if (!applyShareHash()) load();

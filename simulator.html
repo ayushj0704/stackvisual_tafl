@@ -389,7 +389,19 @@
         </div>
 
         <div class="sb-block" id="editPdaBlock" style="display:none">
-          <button id="editPdaBtn" class="sb-customize" type="button">⚙ Customize DPDA</button>
+          <div class="sb-label">Define Language</div>
+          <div class="sb-irow" style="margin-bottom: 12px;">
+            <input id="quickLangInput" class="sb-input" type="text" placeholder="e.g. wwR or anbn" />
+            <button id="quickLangBtn" class="sb-run" type="button" title="Build PDA">⚡</button>
+          </div>
+          <button id="editPdaBtn" class="sb-customize" type="button" style="margin-bottom: 12px;">⚙ Customize manually</button>
+          <div class="sb-label">Or load preset:</div>
+          <select id="customPresetSelect" class="sb-select">
+            <option value="">-- Choose Preset --</option>
+            <option value="wwr">wwR Palindrome</option>
+            <option value="anb2n">aⁿb²ⁿ Double Count</option>
+            <option value="anbncn">aⁿbⁿcⁿ (Always Rejects)</option>
+          </select>
         </div>
 
         <div class="sb-block">
@@ -536,29 +548,15 @@
           </div>
           <div class="builder-transitions">
             <div class="builder-head">
-              <div class="builder-title">Transitions</div>
-              <button id="addTransitionBtn" class="mbtn mbtn-primary">+ Add</button>
+              <div class="builder-title">Transitions Rules</div>
             </div>
-            <div class="builder-help">Use <code>ε</code> for epsilon, <code>EOF</code> for end-of-input, <code>*</code>
-              for wildcard. Multi-push: comma-separated.</div>
+            <div class="builder-help">
+              Format: <code>from, read, pop -> to, push</code> (comma-separated values).<br />
+              Use <code>ε</code> for epsilon, <code>EOF</code> for end-of-input. Multi-push e.g. <code>A,B</code>.
+            </div>
             <div id="customError" class="builder-error hidden"></div>
-            <div class="builder-table-wrap">
-              <table class="builder-table">
-                <thead>
-                  <tr>
-                    <th>From</th>
-                    <th>Read</th>
-                    <th>Pop</th>
-                    <th>Push</th>
-                    <th>To</th>
-                    <th>Guard</th>
-                    <th>Label</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody id="transitionsBody"></tbody>
-              </table>
-            </div>
+            <textarea id="customTransitionsText" class="modal-textarea rules-textarea" spellcheck="false" placeholder="q0, a, ε -> q0, A&#10;q0, b, A -> q1, ε&#10;q1, b, A -> q1, ε&#10;q1, EOF, ε -> qa, ε"></textarea>
+            
             <details class="advanced">
               <summary>Advanced JSON</summary>
               <textarea id="pdaJson" class="modal-textarea" spellcheck="false"></textarea>
@@ -735,6 +733,20 @@
     });
     const editBtn = document.getElementById('editPdaBtn');
     if (editBtn) editObserver.observe(editBtn, { attributes: true, attributeFilter: ['hidden'] });
+
+    const presetSel = document.getElementById('customPresetSelect');
+    if (presetSel) {
+      presetSel.addEventListener('change', (e) => {
+        const p = e.target.value;
+        if (p && PRESETS[p]) {
+          try { localStorage.setItem('pda.custom.json.v1', JSON.stringify(PRESETS[p])); } catch (err){}
+          const pSel = document.getElementById('problemSelect');
+          pSel.value = 'custom';
+          pSel.dispatchEvent(new Event('change'));
+        }
+        e.target.value = '';
+      });
+    }
   </script>
 </body>
 
